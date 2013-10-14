@@ -26,8 +26,6 @@ import org.dbpedia.spotlight.io.FeedbackStore;
 import org.dbpedia.spotlight.model.*;
 import org.dbpedia.spotlight.web.rest.Server;
 import org.dbpedia.spotlight.web.rest.ServerUtils;
-import org.dbpedia.spotlight.web.rest.SpotlightInterface;
-import org.dbpedia.spotlight.web.rest.output.Annotation;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.*;
@@ -37,14 +35,16 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.List;
 
 /**
- * REST Web Service for feedback
+ * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback
+ * Send the feed back by a GET using file request is obligatory, e.g.: curl -X POST -d/home/alexandre/Projects/feedbackCorrect.xml http://localhost:2222/rest/feedback
+ *
  *
  * TODO bulk feedback: users can post a gzip with json or xml encoded feedback
  *
- * @author pablomendes
+ * @author pablomendes (original implementation)
+ * @author Alexandre Cançado Cardoso - accardoso
  */
 
 @ApplicationPath(Server.APPLICATION_PATH)
@@ -57,43 +57,56 @@ public class Feedback {
     @Context
     private UriInfo context;
 
+    // Feedback interface
+    //private static SpotlightInterface feedbackInterface = new SpotlightInterface("/feedback");
+
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces({MediaType.TEXT_XML,MediaType.APPLICATION_XML})
-    public Response getXML(@DefaultValue("") @FormParam("text") String text,
-                           @DefaultValue("") @FormParam("doc_url") String docUrlString,
+    public Response postXML(@DefaultValue("") @FormParam("key") String key,
+                           @DefaultValue("") @FormParam("text") String text,
+                           @DefaultValue("") @FormParam("url") String docUrlString,
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
                            @DefaultValue("") @FormParam("surface_form") String surfaceForm,
-                           @DefaultValue("") @FormParam("systems") String systemIds,
                            @DefaultValue("0") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
-                            @Context HttpServletRequest request) {
+                           @DefaultValue("") @FormParam("systems") String systemIds,
+                           @Context HttpServletRequest request) throws Exception {
 
         String clientIp = request.getRemoteAddr();
 
         try {
-            if (docUrlString.equals("") && text.equals(""))
-                throw new InputException("Either doc_url or text must be filled!");
+            if(!key.equals("2013_Helping_Spotlight_improvement_with_feedback"))
+                throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+
+            if (text.equals(""))
+                throw new InputException("&text must be filled!");
+
             String response = "";
             String[] systems = systemIds.split(" ");
+
             URL docUrl = null;
             try {
                 docUrl = new URL(docUrlString);
-            } catch (MalformedURLException ignored) {}
+            } catch (MalformedURLException e) {
+                if(!docUrlString.equals("")){
+                    throw new InputException("The informed &url is not a valid one.");
+                }
+            }
 
             if (docUrl==null)
                 docUrl = new URL("http://spotlight.dbpedia.org/id/"+text.hashCode());
 
             FeedbackStore output = new CSVFeedbackStore(System.out);
             output.add(docUrl,new Text(text),new DBpediaResource(entityUri),new SurfaceForm(surfaceForm),offset,feedback,systems);
+
             response = "ok";
             return ServerUtils.ok(response);
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST). entity(ServerUtils.print(e)).type(MediaType.TEXT_HTML).build());
         }
     }
-
-
 
 }
