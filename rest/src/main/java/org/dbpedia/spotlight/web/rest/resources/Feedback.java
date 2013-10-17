@@ -20,6 +20,7 @@ package org.dbpedia.spotlight.web.rest.resources;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.dbpedia.spotlight.io.TSVFeedbackStore;
 import org.dbpedia.spotlight.web.rest.Server;
 import org.dbpedia.spotlight.web.rest.ServerUtils;
 
@@ -70,6 +71,9 @@ public class Feedback {
 
         try {
             String clientIp = request.getRemoteAddr();
+
+            //TSVFeedbackStore.add();
+
             return ServerUtils.ok(FeedbackScala.process(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion,
                                                         surfaceForm, offset, feedback, systemIds, isManualFeedback, language));
         } catch (Exception e) {

@@ -4,7 +4,7 @@ import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.Response
 import org.dbpedia.spotlight.exceptions.InputException
 import java.net.URL
-import org.dbpedia.spotlight.io.{CSVFeedbackStore, FeedbackStore}
+import org.dbpedia.spotlight.io.{TSVFeedbackStore, FeedbackStore}
 import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
 
 /**
@@ -73,8 +73,7 @@ object FeedbackScala {
     }
 
     //Store the feedback
-    val output: FeedbackStore = new CSVFeedbackStore(System.out)
-    output.add(docUrl, new Text(text), new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset, standardFeedback, systems)
+    TSVFeedbackStore.add(new Text(text), docUrl, discourseType, new DBpediaResource(entityUri), new DBpediaResource(entityUriSuggestion), new SurfaceForm(surfaceForm), offset, standardFeedback, systems, isManualFeedback, language)
 
     //Answer to the HTTP request
     "ok"
