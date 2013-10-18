@@ -4,17 +4,17 @@ import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.Response
 import org.dbpedia.spotlight.exceptions.InputException
 import java.net.URL
-import org.dbpedia.spotlight.io.{TSVFeedbackStore, FeedbackStore}
+import org.dbpedia.spotlight.io.TSVFeedbackStore
 import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
 
 /**
  * This class format, standardize, clean-up and validate the received feedback before store it to be used.
  *
- * @author pablomendes (original java implementation at Feedback.java)
+ * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-object FeedbackScala {
+object FeedbackProcess {
 
   val feedbackPossibilities: List[String] = List("correct", "incorrect")
 

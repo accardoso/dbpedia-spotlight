@@ -20,7 +20,6 @@ package org.dbpedia.spotlight.web.rest.resources;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.dbpedia.spotlight.io.TSVFeedbackStore;
 import org.dbpedia.spotlight.web.rest.Server;
 import org.dbpedia.spotlight.web.rest.ServerUtils;
 
@@ -38,7 +37,7 @@ import javax.ws.rs.core.UriInfo;
  *
  * TODO bulk feedback: users can post a gzip with json or xml encoded feedback
  *
- * @author pablomendes (original implementation)
+ * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
@@ -72,10 +71,8 @@ public class Feedback {
         try {
             String clientIp = request.getRemoteAddr();
 
-            //TSVFeedbackStore.add();
-
-            return ServerUtils.ok(FeedbackScala.process(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion,
-                                                        surfaceForm, offset, feedback, systemIds, isManualFeedback, language));
+            return ServerUtils.ok(FeedbackProcess.process(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion,
+                                                          surfaceForm, offset, feedback, systemIds, isManualFeedback, language));
         } catch (Exception e) {
             e.printStackTrace();
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST). entity(ServerUtils.print(e)).type(MediaType.TEXT_HTML).build());
