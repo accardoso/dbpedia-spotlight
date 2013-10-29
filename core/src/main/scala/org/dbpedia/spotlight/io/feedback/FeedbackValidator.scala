@@ -63,7 +63,7 @@ object FeedbackValidator {
       docUrl = new URL("http://spotlight.dbpedia.org/id/" + text.hashCode)
     }
 
-    //Store the feedback
+    // Create the StandardFeedback ADT from this validated and standardized feedback data
     val fb = new StandardFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
       standardFeedback, systems, isManualFeedback)
     if (discourseType != "")
