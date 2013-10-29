@@ -14,9 +14,12 @@ import org.dbpedia.spotlight.exceptions.InputException
 
 object FeedbackValidator {
 
-  val feedbackPossibilities: List[String] = List("correct", "incorrect")
+  private val feedbackPossibilities: List[String] = List("correct", "incorrect")
 
-  val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
+  private val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
+
+  //If no doc_url is informed, Spotlight produce a default one with the root below and the text hash
+  private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/"
 
 
   def validateAndStandardize(text: String, docUrlString: String, discourseType: String, entityUri: String,
@@ -60,7 +63,7 @@ object FeedbackValidator {
         case e: Exception => throw new InputException("The informed &url is not a valid one.")
       }
     } else {
-      docUrl = new URL("http://spotlight.dbpedia.org/id/" + text.hashCode)
+      docUrl = new URL(defaultDocURLRoot + text.hashCode)
     }
 
     // Create the StandardFeedback ADT from this validated and standardized feedback data
