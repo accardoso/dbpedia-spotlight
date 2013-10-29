@@ -9,7 +9,7 @@ import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-class StandardFeedback(text: Text, docUrl: URL, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
+class SpotlightFeedback(text: Text, docUrl: URL, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
                        feedback: String, systems: Array[String], isManualFeedback: Boolean) {
   //Declare the optional fields
   var discourseType: String = ""

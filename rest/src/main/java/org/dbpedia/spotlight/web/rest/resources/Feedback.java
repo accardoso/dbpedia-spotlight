@@ -30,7 +30,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.dbpedia.spotlight.io.feedback.FeedbackMultiStore;
 import org.dbpedia.spotlight.io.feedback.FeedbackValidator;
-import org.dbpedia.spotlight.model.StandardFeedback;
+import org.dbpedia.spotlight.model.SpotlightFeedback;
 import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
 import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
 
@@ -80,7 +80,7 @@ public class Feedback {
             Authentication.authenticate(clientIp, key);
 
             //Validate and Standardize the feedback, creating a standard feedback
-            StandardFeedback standardFeedback =  FeedbackValidator.validateAndStandardize(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+            SpotlightFeedback spotlightFeedback =  FeedbackValidator.build(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
             //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
@@ -93,7 +93,7 @@ public class Feedback {
             multiStore.registerStore(new TSVFeedbackStore(System.out)); //Create and register a store that output to a OutputStream auto-converting it to a Writer
 
             //Store the feedback into all stores registered at multiStore
-            multiStore.storeFeedback(standardFeedback);
+            multiStore.storeFeedback(spotlightFeedback);
 
             //Answer that the feedback was stored right. (If not: an exception was threw before this point)
             return ServerUtils.ok("ok");

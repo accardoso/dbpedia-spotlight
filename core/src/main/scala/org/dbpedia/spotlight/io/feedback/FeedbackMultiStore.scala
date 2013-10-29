@@ -1,7 +1,7 @@
 package org.dbpedia.spotlight.io.feedback
 
 import java.io.File
-import org.dbpedia.spotlight.model.StandardFeedback
+import org.dbpedia.spotlight.model.SpotlightFeedback
 
 /**
  * This class manage many feedback stores (implementations of FeedbackStore trait).
@@ -22,7 +22,7 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
   }
 
   /* Add the received standard feedback to all registered stores */
-  def storeFeedback(feedback: StandardFeedback) = {
+  def storeFeedback(feedback: SpotlightFeedback) = {
     if(stores.isEmpty)
       throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
 

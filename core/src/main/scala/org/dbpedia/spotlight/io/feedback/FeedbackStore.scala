@@ -1,7 +1,7 @@
 package org.dbpedia.spotlight.io.feedback
 
 import java.io.{FileWriter, PrintWriter, OutputStream, Writer, File}
-import org.dbpedia.spotlight.model.StandardFeedback
+import org.dbpedia.spotlight.model.SpotlightFeedback
 
 /**
  * Store standard Feedback
@@ -12,7 +12,7 @@ import org.dbpedia.spotlight.model.StandardFeedback
 
 trait FeedbackStore {
   /* Add (append) the new feedback at the end of the storing file/database using the specific format */
-  def add(feedback: StandardFeedback)
+  def add(feedback: SpotlightFeedback)
 }
 
 /**
@@ -37,7 +37,7 @@ class TSVFeedbackStore(output: Writer) extends FeedbackStore {
 
 
   /* Add (append) the new feedback at the end of the storing file/database using the tsv format */
-  def add(feedback: StandardFeedback) = {
+  def add(feedback: SpotlightFeedback) = {
 
     var entry:String = feedback.getText.toString +"\t"+ feedback.getDocUrl.toString +"\t"+ feedback.getDiscourseType +"\t"+
       feedback.getEntityUri.toString +"\t"
@@ -74,7 +74,7 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
 
 
   /* Add (append) the new feedback at the end of the storing file/database using the csv format */
-  def add(feedback: StandardFeedback) = {
+  def add(feedback: SpotlightFeedback) = {
 
     var entry:String = feedback.getText.toString +","+ feedback.getDocUrl.toString +","+ feedback.getDiscourseType +","+
       feedback.getEntityUri.toString +","

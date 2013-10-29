@@ -1,7 +1,7 @@
 package org.dbpedia.spotlight.io.feedback
 
 import java.net.URL
-import org.dbpedia.spotlight.model.{StandardFeedback, SurfaceForm, DBpediaResource, Text}
+import org.dbpedia.spotlight.model.{SpotlightFeedback, SurfaceForm, DBpediaResource, Text}
 import org.dbpedia.spotlight.exceptions.InputException
 
 /**
@@ -22,9 +22,9 @@ object FeedbackValidator {
   private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/"
 
 
-  def validateAndStandardize(text: String, docUrlString: String, discourseType: String, entityUri: String,
+  def build(text: String, docUrlString: String, discourseType: String, entityUri: String,
                              entityUriSuggestion: String, surfaceForm: String, offset: Int, feedback: String, systemIds: String,
-                             isManualFeedback: Boolean, language: String) : StandardFeedback = {
+                             isManualFeedback: Boolean, language: String) : SpotlightFeedback = {
 
     // Obligatory fields filled validation
     if (text == "")
@@ -67,17 +67,17 @@ object FeedbackValidator {
     }
 
     // Create the StandardFeedback ADT from this validated and standardized feedback data
-    val fb = new StandardFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
+    val spotlightFeedback = new SpotlightFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
       standardFeedback, systems, isManualFeedback)
     if (discourseType != "")
-      fb.setDiscourseType(discourseType)
+      spotlightFeedback.setDiscourseType(discourseType)
     if (entityUriSuggestion != "")
-      fb.setEntityUriSuggestion(new DBpediaResource(entityUriSuggestion))
+      spotlightFeedback.setEntityUriSuggestion(new DBpediaResource(entityUriSuggestion))
     if (language != "")
-      fb.setLanguage(language)
+      spotlightFeedback.setLanguage(language)
 
     //Return the validated and standardized feedback
-    fb
+    spotlightFeedback
   }
 
 }
