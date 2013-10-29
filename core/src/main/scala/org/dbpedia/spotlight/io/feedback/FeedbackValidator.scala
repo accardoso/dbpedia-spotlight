@@ -1,10 +1,12 @@
 package org.dbpedia.spotlight.io.feedback
 
 import java.net.URL
-import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
+import org.dbpedia.spotlight.model.{StandardFeedback, SurfaceForm, DBpediaResource, Text}
 import org.dbpedia.spotlight.exceptions.InputException
 
 /**
+ * A validator and standardization class to the feedback.
+ * Receive the feedback as parser by the http post/get feedback interface classes and return a StandardFeedback
  *
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso

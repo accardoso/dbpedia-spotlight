@@ -1,9 +1,10 @@
-package org.dbpedia.spotlight.io.feedback
+package org.dbpedia.spotlight.model
 
 import java.net.URL
 import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
 
 /**
+ * An abstract data type for the Feedback (after standardization)
  *
  * @author Alexandre Cançado Cardoso - accardoso
  */

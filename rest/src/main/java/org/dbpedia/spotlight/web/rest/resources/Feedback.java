@@ -30,7 +30,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.dbpedia.spotlight.io.feedback.FeedbackMultiStore;
 import org.dbpedia.spotlight.io.feedback.FeedbackValidator;
-import org.dbpedia.spotlight.io.feedback.StandardFeedback;
+import org.dbpedia.spotlight.model.StandardFeedback;
 import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
 import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
 
@@ -40,12 +40,11 @@ import java.io.File;
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
  * Send the feed back by a GET using file request is obligatory, e.g.: curl -X POST -d @/home/alexandre/Projects/feedbackIncorrect http://localhost:2222/rest/feedback/
  *
- *
- * TODO bulk feedback: users can post a gzip with json or xml encoded feedback
- *
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
  */
+//TODO bulk feedback: users can post a gzip with json or xml encoded feedback
+//TODO accept HTTP GET
 
 @ApplicationPath(Server.APPLICATION_PATH)
 @Path("/feedback")
@@ -62,7 +61,7 @@ public class Feedback {
     @Produces({MediaType.TEXT_XML,MediaType.APPLICATION_XML})
     public Response postXML(@DefaultValue("") @FormParam("key") String key,
                            @DefaultValue("") @FormParam("text") String text,
-                           @DefaultValue("") @FormParam("url") String docUrlString,                          //Optional
+                           @DefaultValue("") @FormParam("url") String docUrlString,                          //Optional, auto-generated if not informed.
                            @DefaultValue("") @FormParam("discourse_type") String discourseType,              //Optional
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
                            @DefaultValue("") @FormParam("right_entity") String entityUriSuggestion,          //Optional
@@ -77,21 +76,26 @@ public class Feedback {
         try {
             String clientIp = request.getRemoteAddr();
 
+            //Request authentication (throws an exception if not a valid one)
             Authentication.authenticate(clientIp, key);
 
+            //Validate and Standardize the feedback, creating a standard feedback
             StandardFeedback standardFeedback =  FeedbackValidator.validateAndStandardize(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
+            //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
-            FeedbackMultiStore multiStore = new FeedbackMultiStore();
-            multiStore.addStore(new TSVFeedbackStore(storageFolderPath));
-            multiStore.addStore(new TSVFeedbackStore(storageFolderPath, "feedbackStoreBackup"));
-            multiStore.addStore(new CSVFeedbackStore(storageFolderPath));
-            multiStore.addStore(new CSVFeedbackStore(new File(storageFolderPath + File.separator + "feedbackStoreBackup.csv")));
-            multiStore.addStore(new TSVFeedbackStore(System.out));
+            //Create a manager for multiples stores and register its stores
+            FeedbackMultiStore multiStore = new FeedbackMultiStore(); //Create the empty Multi-Store
+            multiStore.registerStore(new TSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and default named .tsv file
+            multiStore.registerStore(new TSVFeedbackStore(storageFolderPath, "feedbackStoreBackup"));  //Create and register a store that output to a auto-created but  manually named (feedbackStoreBackup) .tsv file
+            multiStore.registerStore(new CSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and  default named .csv file
+            multiStore.registerStore(new CSVFeedbackStore(new File(storageFolderPath + File.separator + "feedbackStoreBackup.csv"))); //Create a store that output to a manually created .csv file
+            multiStore.registerStore(new TSVFeedbackStore(System.out)); //Create and register a store that output to a OutputStream auto-converting it to a Writer
 
-            multiStore.addFeedback(standardFeedback);
-            multiStore.addFeedback(standardFeedback);
+            //Store the feedback into all stores registered at multiStore
+            multiStore.storeFeedback(standardFeedback);
 
+            //Answer that the feedback was stored right. (If not: an exception was threw before this point)
             return ServerUtils.ok("ok");
         } catch (Exception e) {
             e.printStackTrace();
