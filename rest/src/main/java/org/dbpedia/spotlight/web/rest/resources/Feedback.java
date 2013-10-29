@@ -34,6 +34,8 @@ import org.dbpedia.spotlight.io.feedback.StandardFeedback;
 import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
 import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
 
+import java.io.File;
+
 /**
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
  * Send the feed back by a GET using file request is obligatory, e.g.: curl -X POST -d @/home/alexandre/Projects/feedbackIncorrect http://localhost:2222/rest/feedback/
@@ -75,16 +77,19 @@ public class Feedback {
         try {
             String clientIp = request.getRemoteAddr();
 
-            Authentication.authenticate(key); //throw an exception if not a valid key
+            Authentication.authenticate(clientIp, key);
 
-            StandardFeedback standardFeedback =  FeedbackValidator.validateAndStandardize(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+            StandardFeedback standardFeedback =  FeedbackValidator.validateAndStandardize(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
             FeedbackMultiStore multiStore = new FeedbackMultiStore();
             multiStore.addStore(new TSVFeedbackStore(storageFolderPath));
             multiStore.addStore(new TSVFeedbackStore(storageFolderPath, "feedbackStoreBackup"));
             multiStore.addStore(new CSVFeedbackStore(storageFolderPath));
+            multiStore.addStore(new CSVFeedbackStore(new File(storageFolderPath + File.separator + "feedbackStoreBackup.csv")));
+            multiStore.addStore(new TSVFeedbackStore(System.out));
 
+            multiStore.addFeedback(standardFeedback);
             multiStore.addFeedback(standardFeedback);
 
             return ServerUtils.ok("ok");

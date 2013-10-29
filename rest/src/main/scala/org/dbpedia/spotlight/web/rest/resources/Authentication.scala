@@ -20,4 +20,6 @@ object Authentication {
     true
   }
 
+  def authenticate(clientIp: String, key: String): Boolean = authenticate(key)
+
 }

@@ -21,14 +21,6 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
     }
   }
 
-  override def toString(): String = {
-    var str = "FeedbackMultiStore's current stores:"
-    for(store <-stores){
-      str += "\n\t" + store.toString()
-    }
-    str
-  }
-
 }
 
 

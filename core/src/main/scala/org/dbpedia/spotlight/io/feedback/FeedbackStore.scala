@@ -1,6 +1,6 @@
 package org.dbpedia.spotlight.io.feedback
 
-import java.io.{FileWriter, PrintWriter, Writer, File}
+import java.io.{FileWriter, PrintWriter, OutputStream, Writer, File}
 
 
 /**
@@ -19,9 +19,13 @@ trait FeedbackStore {
  * Stores the feedback in a TSV file
  */
 class TSVFeedbackStore(output: Writer) extends FeedbackStore {
-  /* Constructor with new File as output */
+  /* Constructor with a OutputStream as output and converting it to a Writer */
+  def this(stream: OutputStream) = this(new PrintWriter(stream))
+  /* Constructor with a informed File as output and converting it to a appendable FileWriter */
+  def this(file: File) = this(new FileWriter(file, true))
+  /* Constructor with new File as output and convert it to a appendable FileWriter */
   def this(storageFolderPath: String, storageFileName: String) =
-    this(new PrintWriter(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".tsv")), true))
+    this(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".tsv"), true))
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
 
@@ -37,20 +41,22 @@ class TSVFeedbackStore(output: Writer) extends FeedbackStore {
       feedback.getSystems.toString +"\t"+ feedback.getIsManualFeedback.toString +"\t"+ feedback.getLanguage +"\n"
 
     output.append(entry)
+    output.flush()
   }
 
-  override def toString(): String = {
-    this.getClass.toString + " with output: " + output.toString
-  }
 }
 
 /**
  * Stores the feedback in a CSV file
  */
 class CSVFeedbackStore(output: Writer) extends FeedbackStore {
-  /* Constructor with new File as output */
+  /* Constructor with a OutputStream as output and converting it to a Writer */
+  def this(stream: OutputStream) = this(new PrintWriter(stream))
+  /* Constructor with a informed File as output and converting it to a appendable FileWriter */
+  def this(file: File) = this(new FileWriter(file, true))
+  /* Constructor with new File as output and convert it to a appendable FileWriter */
   def this(storageFolderPath: String, storageFileName: String) =
-    this(new PrintWriter(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".csv")), true))
+    this(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".csv"), true))
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
 
@@ -66,9 +72,7 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
              feedback.getSystems.toString +"\t"+ feedback.getIsManualFeedback.toString +"\t"+ feedback.getLanguage +"\n"
 
     output.append(entry)
+    output.flush()
   }
 
-  override def toString(): String = {
-    this.getClass.toString + " output: " + output.toString
-  }
 }

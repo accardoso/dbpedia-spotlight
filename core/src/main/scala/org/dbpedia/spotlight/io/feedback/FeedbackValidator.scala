@@ -17,7 +17,7 @@ object FeedbackValidator {
   val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
 
 
-  def validateAndStandardize(clientIp:String, key: String, text: String, docUrlString: String, discourseType: String, entityUri: String,
+  def validateAndStandardize(text: String, docUrlString: String, discourseType: String, entityUri: String,
                              entityUriSuggestion: String, surfaceForm: String, offset: Int, feedback: String, systemIds: String,
                              isManualFeedback: Boolean, language: String) : StandardFeedback = {
 
