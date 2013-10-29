@@ -1,36 +1,25 @@
-package org.dbpedia.spotlight.web.rest.resources
+package org.dbpedia.spotlight.io.feedback
 
-import javax.ws.rs.WebApplicationException
-import javax.ws.rs.core.Response
-import org.dbpedia.spotlight.exceptions.InputException
 import java.net.URL
-import org.dbpedia.spotlight.io.TSVFeedbackStore
 import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResource, Text}
+import org.dbpedia.spotlight.exceptions.InputException
 
 /**
- * This class format, standardize, clean-up and validate the received feedback before store it to be used.
  *
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-object FeedbackProcess {
+object FeedbackValidator {
 
   val feedbackPossibilities: List[String] = List("correct", "incorrect")
 
-  val automaticSystemsIds: List[String] = List("alchemy_api", "open_calais", "spotlight_lucene")
+  val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
 
 
-  def process(clientIp:String, key: String, text: String, docUrlString: String, discourseType: String, entityUri: String,
-              entityUriSuggestion: String, surfaceForm: String, offset: Int, feedback: String, systemIds: String,
-              isManualFeedback: Boolean, language: String) : String = {
-
-    // Authentication
-    /*if(registeredClients.contains(clientIp))
-      throw new WebApplicationException(Response.Status.UNAUTHORIZED) */
-    if (!(key == "2013_Helping_Spotlight_improvement_with_feedback_for_that_I_have_the_key"))
-      throw new WebApplicationException(Response.Status.UNAUTHORIZED)
-    //TODO definitive professional authentication
+  def validateAndStandardize(clientIp:String, key: String, text: String, docUrlString: String, discourseType: String, entityUri: String,
+                             entityUriSuggestion: String, surfaceForm: String, offset: Int, feedback: String, systemIds: String,
+                             isManualFeedback: Boolean, language: String) : StandardFeedback = {
 
     // Obligatory fields filled validation
     if (text == "")
@@ -73,10 +62,17 @@ object FeedbackProcess {
     }
 
     //Store the feedback
-    TSVFeedbackStore.add(new Text(text), docUrl, discourseType, new DBpediaResource(entityUri), new DBpediaResource(entityUriSuggestion), new SurfaceForm(surfaceForm), offset, standardFeedback, systems, isManualFeedback, language)
+    val fb = new StandardFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
+      standardFeedback, systems, isManualFeedback)
+    if (discourseType != "")
+      fb.setDiscourseType(discourseType)
+    if (entityUriSuggestion != "")
+      fb.setEntityUriSuggestion(new DBpediaResource(entityUriSuggestion))
+    if (language != "")
+      fb.setLanguage(language)
 
-    //Answer to the HTTP request
-    "ok"
+    //Return the validated and standardized feedback
+    fb
   }
 
 }

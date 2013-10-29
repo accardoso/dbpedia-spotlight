@@ -22,13 +22,17 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dbpedia.spotlight.web.rest.Server;
 import org.dbpedia.spotlight.web.rest.ServerUtils;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import org.dbpedia.spotlight.io.feedback.FeedbackMultiStore;
+import org.dbpedia.spotlight.io.feedback.FeedbackValidator;
+import org.dbpedia.spotlight.io.feedback.StandardFeedback;
+import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
+import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
 
 /**
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
@@ -64,15 +68,26 @@ public class Feedback {
                            @DefaultValue("0") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
                            @DefaultValue("") @FormParam("systems") String systemIds,
-                           @DefaultValue("false") @FormParam("is_manual_feedback") boolean isManualFeedback,
+                           @DefaultValue("") @FormParam("is_manual_feedback") boolean isManualFeedback,
                            @DefaultValue("") @FormParam("language") String language,                         //Optional
                            @Context HttpServletRequest request) throws Exception {
 
         try {
             String clientIp = request.getRemoteAddr();
 
-            return ServerUtils.ok(FeedbackProcess.process(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion,
-                                                          surfaceForm, offset, feedback, systemIds, isManualFeedback, language));
+            Authentication.authenticate(key); //throw an exception if not a valid key
+
+            StandardFeedback standardFeedback =  FeedbackValidator.validateAndStandardize(clientIp, key, text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+
+            String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
+            FeedbackMultiStore multiStore = new FeedbackMultiStore();
+            multiStore.addStore(new TSVFeedbackStore(storageFolderPath));
+            multiStore.addStore(new TSVFeedbackStore(storageFolderPath, "feedbackStoreBackup"));
+            multiStore.addStore(new CSVFeedbackStore(storageFolderPath));
+
+            multiStore.addFeedback(standardFeedback);
+
+            return ServerUtils.ok("ok");
         } catch (Exception e) {
             e.printStackTrace();
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST). entity(ServerUtils.print(e)).type(MediaType.TEXT_HTML).build());
