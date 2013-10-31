@@ -35,18 +35,10 @@ class TSVFeedbackStore(output: Writer) extends FeedbackStore {
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
 
-
   /* Add (append) the new feedback at the end of the storing file/database using the tsv format */
   def add(feedback: SpotlightFeedback) = {
-
-    var entry:String = feedback.getText.toString +"\t"+ feedback.getDocUrl.toString +"\t"+ feedback.getDiscourseType +"\t"+
-      feedback.getEntityUri.toString +"\t"
-    if(feedback.getEntityUriSuggestion() != null)
-      entry += feedback.getEntityUriSuggestion.toString
-    entry += "\t"+ feedback.getSurfaceForm.toString +"\t"+ feedback.getOffset.toString +"\t"+ feedback +"\t"+
-      feedback.getSystems.toString +"\t"+ feedback.getIsManualFeedback.toString +"\t"+ feedback.getLanguage +"\n"
-
-    output.append(entry)
+    output.append("\n")
+    output.append(feedback.mkString("\t"))
     output.flush()
   }
 
@@ -72,19 +64,11 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
 
-
   /* Add (append) the new feedback at the end of the storing file/database using the csv format */
   def add(feedback: SpotlightFeedback) = {
-
-    var entry:String = feedback.getText.toString +","+ feedback.getDocUrl.toString +","+ feedback.getDiscourseType +","+
-      feedback.getEntityUri.toString +","
-    if(feedback.getEntityUriSuggestion() != null)
-      entry += feedback.getEntityUriSuggestion.toString
-    entry += ","+ feedback.getSurfaceForm.toString +","+ feedback.getOffset.toString +","+ feedback +","+
-             feedback.getSystems.toString +","+ feedback.getIsManualFeedback.toString +","+ feedback.getLanguage +"\n"
-
-    output.append(entry)
-    output.flush()
+    output.append("\n")
+    output.append(feedback.mkString(","))
+    output.flush
   }
 
 }

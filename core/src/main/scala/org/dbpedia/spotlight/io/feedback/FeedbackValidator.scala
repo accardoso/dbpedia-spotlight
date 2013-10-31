@@ -67,17 +67,18 @@ object FeedbackValidator {
     }
 
     // Create the StandardFeedback ADT from this validated and standardized feedback data
-    val spotlightFeedback = new SpotlightFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
-      standardFeedback, systems, isManualFeedback)
-    if (discourseType != "")
-      spotlightFeedback.setDiscourseType(discourseType)
-    if (entityUriSuggestion != "")
-      spotlightFeedback.setEntityUriSuggestion(new DBpediaResource(entityUriSuggestion))
-    if (language != "")
-      spotlightFeedback.setLanguage(language)
+//    val spotlightFeedback = new SpotlightFeedback(new Text(text), docUrl, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm), offset,
+//      standardFeedback, systems, isManualFeedback)
+//    if (discourseType != "")
+//      spotlightFeedback.setDiscourseType(discourseType)
+//    if (entityUriSuggestion != "")
+//      spotlightFeedback.setEntityUriSuggestion(new DBpediaResource(entityUriSuggestion))
+//    if (language != "")
+//      spotlightFeedback.setLanguage(language)
 
     //Return the validated and standardized feedback
-    spotlightFeedback
+    //spotlightFeedback
+    null
   }
 
 }

@@ -80,7 +80,8 @@ public class Feedback {
             Authentication.authenticate(clientIp, key);
 
             //Validate and Standardize the feedback, creating a standard feedback
-            SpotlightFeedback spotlightFeedback =  FeedbackValidator.build(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+            //SpotlightFeedback spotlightFeedback =  FeedbackValidator.build(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+            SpotlightFeedback spotlightFeedback =  new SpotlightFeedback(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
             //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
