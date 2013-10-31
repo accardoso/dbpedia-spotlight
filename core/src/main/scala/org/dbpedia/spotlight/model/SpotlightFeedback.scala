@@ -69,27 +69,41 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def mkString(sep: String): String = {
     if(sep == " ")
       throw new IllegalArgumentException("SpotlightFeedback attributes can not be separated by \" \", because it is already used to separate the systems list elements")
-    var list: List[String] = List(text.text, docUrl.toString, discourseType, entityUri.toString)
+    var list: List[String] = List(text.text, docUrl.toString)
+    if(discourseType == "")
+      list = list :+ SpotlightFeedback.emptyFieldRepresentation
+    else
+      list = list :+ discourseType
+    list = list :+ entityUri.toString
     if(entityUriSuggestion == null)
-      list = list :+ ""
+      list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
       list = list :+ entityUriSuggestion.toString
-    list = list ++ List(surfaceForm.toString, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString, language)
+    list = list ++ List(surfaceForm.toString, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
+    if(language == "")
+      list = list :+ SpotlightFeedback.emptyFieldRepresentation
+    else
+      list = list :+ language
 
     list.mkString(sep)
+  }
+
+  override def toString(): String = {
+    "SpotlightFeedback[" + this.mkString("\t") + "]"
   }
 }
 
 object SpotlightFeedback {
 
+  val emptyFieldRepresentation: String = "_"
+  val nunOfFeedbackFields: Int = 11
+
   private val feedbackPossibilitiesThatAcceptSuggestion: List[String] = List("incorrect")
-  
   private val allFeedbackPossibilities: List[String] = List("correct") ++ feedbackPossibilitiesThatAcceptSuggestion
 
   private val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
 
-  //If no doc_url is informed, Spotlight produce a default one with the root below and the text hash
-  private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/"
+  private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/" //If no doc_url is informed, Spotlight produce a default one with the root below and the text hash
 
   /* Create the default docUrl using the informed text */
   private def createDefaultDocUrl(text: Text): URL = {
@@ -114,7 +128,6 @@ object SpotlightFeedback {
   }
   /* Create a valid docUrl of the correct type (URL) from the informed string document url (used at the HTTP request) or, if not possible, the default docUrl from the string text */
   private def createDocUrl(docUrlString: String, text: String): URL = createDocUrl(docUrlString, new Text(text))
-
 
   /* Create a valid (or throw exception) entityUriSuggestion of the correct type (DBpediaResource) from the informed string entity uri suggestion (used at the HTTP request) */
   private def createEntityUriSuggestion(entityUriSuggestionString: String, feedback: String): DBpediaResource = {

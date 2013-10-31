@@ -4,7 +4,7 @@ import java.io.{FileWriter, PrintWriter, OutputStream, Writer, File}
 import org.dbpedia.spotlight.model.SpotlightFeedback
 
 /**
- * Store standard Feedback
+ * Store Spotlight Feedback
  *
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
