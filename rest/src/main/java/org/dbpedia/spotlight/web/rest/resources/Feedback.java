@@ -29,7 +29,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.dbpedia.spotlight.io.feedback.FeedbackMultiStore;
-import org.dbpedia.spotlight.io.feedback.FeedbackValidator;
 import org.dbpedia.spotlight.model.SpotlightFeedback;
 import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
 import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
@@ -80,7 +79,6 @@ public class Feedback {
             Authentication.authenticate(clientIp, key);
 
             //Validate and Standardize the feedback, creating a standard feedback
-            //SpotlightFeedback spotlightFeedback =  FeedbackValidator.build(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
             SpotlightFeedback spotlightFeedback =  new SpotlightFeedback(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
             //Create a folder to keep all storage files
