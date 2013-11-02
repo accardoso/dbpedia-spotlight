@@ -69,7 +69,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def mkString(sep: String): String = {
     if(sep == " ")
       throw new IllegalArgumentException("SpotlightFeedback attributes can not be separated by \" \", because it is already used to separate the systems list elements")
-    var list: List[String] = List(text.text, docUrl.toString)
+    var list: List[String] = List(text.text.replace(sep, ""), docUrl.toString) //Need to remove sep from the text to do not generate confusion with where is a text element and where is a separator //TODO a real escape for the sep that are text elements (suggestion: encode to url text)
     if(discourseType == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
@@ -89,7 +89,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   }
 
   override def toString(): String = {
-    "SpotlightFeedback[" + this.mkString("\t") + "]"
+    "SpotlightFeedback[" + this.mkString(" | ") + "]"
   }
 }
 
