@@ -9,22 +9,22 @@ import org.dbpedia.spotlight.exceptions.InputException
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, entityUri: DBpediaResource,
-                        var entityUriSuggestion: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
+class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, entity: DBpediaResource,
+                        var entitySuggestion: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
                         var feedback: String, var systems: List[String], isManualFeedback: Boolean, var language: String) {
   /* Constructor for obligatory attributes only */
-  def this(text: Text, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int, feedback: String,
+  def this(text: Text, entity: DBpediaResource, surfaceForm: SurfaceForm, offset: Int, feedback: String,
            systems: List[String], isManualFeedback: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text),
-           "", entityUri, null, surfaceForm, offset, feedback, systems, isManualFeedback, "")
+           "", entity, null, surfaceForm, offset, feedback, systems, isManualFeedback, "")
   /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
-  def this(text: String, entityUriString: String, surfaceFormString: String, offset: Int, feedback: String,
-           systemsString: String, isManualFeedback: Boolean) = this(new Text(text), new DBpediaResource(entityUriString),
+  def this(text: String, entityUri: String, surfaceFormString: String, offset: Int, feedback: String,
+           systemsString: String, isManualFeedback: Boolean) = this(new Text(text), new DBpediaResource(entityUri),
            new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback)
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrlString: String, discourseType: String, entityUriString: String, entityUriSuggestionString: String,
+  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, entityUriSuggestion: String,
            surfaceFormString: String, offset: Int, feedback: String, systemsString: String, isManualFeedback: Boolean,
            language:String) = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
-           new DBpediaResource(entityUriString), SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestionString, feedback),
+           new DBpediaResource(entityUri), SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestion, feedback),
            new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback, language)
   /* Standardize obligatory attributes */
   //Feedback must be lower case
@@ -39,9 +39,9 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   language = language.toLowerCase
 
   /* Validate obligatory attributes */
-  SpotlightFeedback.validate(text, entityUri, surfaceForm, offset, feedback, systems, isManualFeedback)
+  SpotlightFeedback.validate(text, entity, surfaceForm, offset, feedback, systems, isManualFeedback)
 
-  //End-construct
+  //End-constructor
 
   /* Methods */
 
@@ -50,15 +50,17 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   */
   def setDocUrl(docUrlString: String) = this.docUrl = SpotlightFeedback.createDocUrl(docUrlString, text)
   def setDiscourseType(discourseType: String) = this.discourseType = discourseType.toLowerCase
-  def setEntityUriSuggestion(entityUriSuggestionString: String) = this.entityUriSuggestion =  SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestionString, feedback)
+  def setEntityUriSuggestion(entityUriSuggestionString: String) = this.entitySuggestion =  SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestionString, feedback)
   def setLanguage(language: String) = this.language = language.toLowerCase
 
   /* Getters */
   def getText(): Text = text
   def getDocUrl(): URL = docUrl
   def getDiscourseType(): String = discourseType
-  def getEntityUri(): DBpediaResource = entityUri
-  def getEntityUriSuggestion(): DBpediaResource = entityUriSuggestion
+  def getEntity(): DBpediaResource = entity
+  def getEntityUri() = entity.getFullUri
+  def getEntitySuggestion(): DBpediaResource = entitySuggestion
+  def getEntityUriSuggestion() = entitySuggestion.getFullUri
   def getSurfaceForm(): SurfaceForm = surfaceForm
   def getOffset(): Int = offset
   def getFeedback(): String = feedback
@@ -74,12 +76,12 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
       list = list :+ discourseType
-    list = list :+ entityUri.toString
-    if(entityUriSuggestion == null)
+    list = list :+ entity.getFullUri
+    if(entitySuggestion == null)
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
-      list = list :+ entityUriSuggestion.toString
-    list = list ++ List(surfaceForm.toString, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
+      list = list :+ entitySuggestion.getFullUri
+    list = list ++ List(surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
     if(language == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
@@ -171,6 +173,10 @@ object SpotlightFeedback {
 
     //It is valid
     true
+  }
+  
+  def getAllFeedbackPossibilities(): List[String] = {
+    allFeedbackPossibilities
   }
 
 }
