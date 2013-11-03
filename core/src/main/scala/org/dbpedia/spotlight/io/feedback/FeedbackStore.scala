@@ -72,3 +72,111 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
   }
 
 }
+
+class LuceneIndexStore(rootDirectory: File, languageCode: String) extends FeedbackStore {
+  def this(rootDirectoryPath: String, languageCode: String) = this(new File(rootDirectoryPath), languageCode)
+  def this(rootDirectory: File) = this(rootDirectory, "en")
+  def this(rootDirectoryPath: String) = this(new File(rootDirectoryPath), "en")
+
+  if(!rootDirectory.exists() || !rootDirectory.isDirectory)
+    throw new IllegalArgumentException("Could not find the root directory: %s".format(rootDirectory))
+
+  val storageDirectory = LuceneIndexStore.createStorageFolder(rootDirectory + File.separator + "feedbackStore.en-LuceneIndex")
+
+  var outputFolders: List[File] = List()
+  SpotlightFeedback.getAllFeedbackPossibilities().foreach{ possibility =>
+    try{
+      outputFolders = outputFolders :+ LuceneIndexStore.createStorageFolder(storageDirectory.getCanonicalPath + File.separator + possibility + "Feedback")
+    } catch {
+      case e: IllegalAccessError =>
+        throw new IllegalAccessError(("Was not possible to store the %s feedback as lucene index. " +
+                                      "Because %s file exists and is not a directory.")
+                                      .format(possibility,
+                                      storageDirectory.getCanonicalPath + File.separator + possibility + "Feedback" ))
+    }
+  }
+
+  var instanceTypesWriters: List[Writer] = List()
+  var labelsWriters: List[Writer] = List()
+  var redirectsWriters: List[Writer] = List()
+  var disambiguationsWriters: List[Writer] = List()
+  var dumpWriters: List[Writer] = List()
+  var i: Int = 0
+  outputFolders.foreach{ folder =>
+    instanceTypesWriters = instanceTypesWriters :+
+      new FileWriter(new File(folder.getCanonicalPath + File.separator
+                              + SpotlightFeedback.getAllFeedbackPossibilities()(i) + "Feedback_instance_types.nq"), true)
+    labelsWriters = labelsWriters :+
+      new FileWriter(new File(folder.getCanonicalPath + File.separator
+                              + SpotlightFeedback.getAllFeedbackPossibilities()(i) + "Feedback_labels.nq"), true)
+    redirectsWriters = redirectsWriters :+
+      new FileWriter(new File(folder.getCanonicalPath + File.separator
+                              + SpotlightFeedback.getAllFeedbackPossibilities()(i) + "Feedback_redirects.nq"), true)
+    disambiguationsWriters = disambiguationsWriters :+
+      new FileWriter(new File(folder.getCanonicalPath + File.separator
+                              + SpotlightFeedback.getAllFeedbackPossibilities()(i) + "Feedback_disambiguations.nq"), true)
+    dumpWriters = dumpWriters :+
+      new FileWriter(new File(folder.getCanonicalPath + File.separator
+                              + SpotlightFeedback.getAllFeedbackPossibilities()(i) + "Feedback_dump.xml"), true)
+    i += 1
+  }
+
+  //End-constructor
+
+
+  /* Add the new feedback to the storing lucene indexes */
+  def add(feedback: SpotlightFeedback) = {
+    val index = SpotlightFeedback.getAllFeedbackPossibilities().indexOf(feedback.getFeedback())
+    instanceTypesWriters(index).append(generateInstanceType(feedback))
+    instanceTypesWriters(index).flush()
+
+    labelsWriters(index).append(generateLabel(feedback))
+    labelsWriters(index).flush()
+
+    redirectsWriters(index).append(generateRedirect(feedback))
+    redirectsWriters(index).flush()
+
+    disambiguationsWriters(index).append(generateDisambiguation(feedback))
+    disambiguationsWriters(index).flush()
+
+    dumpWriters(index).append(generateDump(feedback))
+    dumpWriters(index).flush()
+  }
+
+  private def generateInstanceType(feedback: SpotlightFeedback): String = {
+    ""
+  }
+  private def generateLabel(feedback: SpotlightFeedback): String = {
+    List("<"+feedback.getEntityFullUri()+">",
+         LuceneIndexStore.labelTripleMiddle,
+         "\""+feedback.getSurfaceFormName()+"\"@"+languageCode).mkString(" ")
+  }
+  private def generateRedirect(feedback: SpotlightFeedback): String = {
+    ""
+  }
+  private def generateDisambiguation(feedback: SpotlightFeedback): String = {
+    ""
+  }
+  private def generateDump(feedback: SpotlightFeedback): String = {
+    ""
+  }
+
+}
+
+object LuceneIndexStore {
+
+  private val instanceTypeTripleMiddle: String = "<www.w3.org/1999/02/22-rdf-syntax-ns#type>"
+  private val labelTripleMiddle: String = "<http://www.w3.org/2000/01/rdf-schema#label>"
+  private val redirectTripleMiddle: String = "<dbpedia.org/ontology/wikiPageRedirects>"
+
+  /* Create the folder where the files with the feedback will be placed */
+  def createStorageFolder (storageFolderName: String) : File = {
+    val warehouse = new File(storageFolderName)
+    val created:Boolean = warehouse.mkdir()
+    if (!created){
+      if (warehouse.exists() && !warehouse.isDirectory)
+        throw new IllegalAccessError("File exists but is not a directory.")
+    }
+    warehouse
+  }
+}

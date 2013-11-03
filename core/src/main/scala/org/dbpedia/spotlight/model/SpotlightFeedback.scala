@@ -21,10 +21,10 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
            systemsString: String, isManualFeedback: Boolean) = this(new Text(text), new DBpediaResource(entityUri),
            new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback)
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, entityUriSuggestion: String,
+  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, entitySuggestionUri: String,
            surfaceFormString: String, offset: Int, feedback: String, systemsString: String, isManualFeedback: Boolean,
            language:String) = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
-           new DBpediaResource(entityUri), SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestion, feedback),
+           new DBpediaResource(entityUri), SpotlightFeedback.createEntityUriSuggestion(entitySuggestionUri, feedback),
            new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback, language)
   /* Standardize obligatory attributes */
   //Feedback must be lower case
@@ -58,10 +58,11 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def getDocUrl(): URL = docUrl
   def getDiscourseType(): String = discourseType
   def getEntity(): DBpediaResource = entity
-  def getEntityUri() = entity.getFullUri
+  def getEntityFullUri() = entity.getFullUri
   def getEntitySuggestion(): DBpediaResource = entitySuggestion
-  def getEntityUriSuggestion() = entitySuggestion.getFullUri
+  def getEntitySuggestionFullUri() = entitySuggestion.getFullUri
   def getSurfaceForm(): SurfaceForm = surfaceForm
+  def getSurfaceFormName(): SurfaceForm = surfaceForm
   def getOffset(): Int = offset
   def getFeedback(): String = feedback
   def getSystems(): List[String] = systems
@@ -138,7 +139,7 @@ object SpotlightFeedback {
       return null
 
     validateEntityUriSuggestion(feedback)
-    
+
     new DBpediaResource(entityUriSuggestionString)
   }
 
