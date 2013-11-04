@@ -127,18 +127,23 @@ class LuceneIndexStore(rootDirectory: File, languageCode: String) extends Feedba
   /* Add the new feedback to the storing lucene indexes */
   def add(feedback: SpotlightFeedback) = {
     val index = SpotlightFeedback.getAllFeedbackPossibilities().indexOf(feedback.getFeedback())
+    instanceTypesWriters(index).append("\n")
     instanceTypesWriters(index).append(generateInstanceType(feedback))
     instanceTypesWriters(index).flush()
 
+    labelsWriters(index).append("\n")
     labelsWriters(index).append(generateLabel(feedback))
     labelsWriters(index).flush()
 
+    redirectsWriters(index).append("\n")
     redirectsWriters(index).append(generateRedirect(feedback))
     redirectsWriters(index).flush()
 
+    disambiguationsWriters(index).append("\n")
     disambiguationsWriters(index).append(generateDisambiguation(feedback))
     disambiguationsWriters(index).flush()
 
+    dumpWriters(index).append("\n")
     dumpWriters(index).append(generateDump(feedback))
     dumpWriters(index).flush()
   }
