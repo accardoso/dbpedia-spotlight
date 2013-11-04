@@ -31,6 +31,10 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
     }
   }
 
+  def storeFeedbackBatch(feedbackList: List[SpotlightFeedback]) = {
+    feedbackList.foreach(storeFeedback(_))
+  }
+
 }
 
 
