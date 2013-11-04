@@ -94,6 +94,14 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   override def toString(): String = {
     "SpotlightFeedback[" + this.mkString(" | ") + "]"
   }
+
+  def toDBpediaResourceOccurrence():DBpediaResourceOccurrence = {
+    new DBpediaResourceOccurrence(entity, surfaceForm, text, offset)
+  }
+
+  def toSuggestedDBpediaResourceOccurrence():DBpediaResourceOccurrence = {
+    new DBpediaResourceOccurrence(entitySuggestion, surfaceForm, text, offset)
+  }
 }
 
 object SpotlightFeedback {
@@ -178,6 +186,10 @@ object SpotlightFeedback {
   
   def getAllFeedbackPossibilities(): List[String] = {
     allFeedbackPossibilities
+  }
+
+  def getFeedbackPossibilitiesThatAcceptSuggestion() : List[String] = {
+    feedbackPossibilitiesThatAcceptSuggestion
   }
 
 }
