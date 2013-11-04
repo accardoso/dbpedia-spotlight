@@ -19,8 +19,10 @@ object OccurrencesSource {
       var index: Int = annotated.indexWhere(_.getFeedback() == feedback.getFeedback())
       annotated(index).addOcc(feedback.toDBpediaResourceOccurrence())
       if(SpotlightFeedback.getFeedbackPossibilitiesThatAcceptSuggestion().contains(feedback.getFeedback())){
-        index = suggested.indexWhere(_.getFeedback() == feedback.getFeedback())
-        suggested(index).addOcc(feedback.toSuggestedDBpediaResourceOccurrence())
+        if(feedback.getEntitySuggestion() != null){
+          index = suggested.indexWhere(_.getFeedback() == feedback.getFeedback())
+          suggested(index).addOcc(feedback.toSuggestedDBpediaResourceOccurrence())
+        }
       }
     }
 
