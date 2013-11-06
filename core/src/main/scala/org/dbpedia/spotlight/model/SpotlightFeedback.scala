@@ -10,22 +10,23 @@ import org.dbpedia.spotlight.exceptions.InputException
  */
 
 class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, entity: DBpediaResource,
-                        var entitySuggestion: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
-                        var feedback: String, var systems: List[String], isManualFeedback: Boolean, var language: String) {
+                        surfaceForm: SurfaceForm, offset: Int, var feedback: String, var systems: List[String],
+                        isManualFeedback: Boolean, var language: String) {
   /* Constructor for obligatory attributes only */
   def this(text: Text, entity: DBpediaResource, surfaceForm: SurfaceForm, offset: Int, feedback: String,
            systems: List[String], isManualFeedback: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text),
-           "", entity, null, surfaceForm, offset, feedback, systems, isManualFeedback, "")
+           "", entity, surfaceForm, offset, feedback, systems, isManualFeedback, "")
   /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
   def this(text: String, entityUri: String, surfaceFormString: String, offset: Int, feedback: String,
            systemsString: String, isManualFeedback: Boolean) = this(new Text(text), new DBpediaResource(entityUri),
            new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback)
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, entitySuggestionUri: String,
-           surfaceFormString: String, offset: Int, feedback: String, systemsString: String, isManualFeedback: Boolean,
-           language:String) = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
-           new DBpediaResource(entityUri), SpotlightFeedback.createEntityUriSuggestion(entitySuggestionUri, feedback),
-           new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback, language)
+  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, surfaceFormString: String,
+           offset: Int, feedback: String, systemsString: String, isManualFeedback: Boolean, language:String)
+    = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
+           new DBpediaResource(entityUri), new SurfaceForm(surfaceFormString), offset, feedback,
+           systemsString.split(" ").toList, isManualFeedback, language)
+
   /* Standardize obligatory attributes */
   //Feedback must be lower case
   feedback = feedback.toLowerCase
@@ -50,7 +51,6 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   */
   def setDocUrl(docUrlString: String) = this.docUrl = SpotlightFeedback.createDocUrl(docUrlString, text)
   def setDiscourseType(discourseType: String) = this.discourseType = discourseType.toLowerCase
-  def setEntityUriSuggestion(entityUriSuggestionString: String) = this.entitySuggestion =  SpotlightFeedback.createEntityUriSuggestion(entityUriSuggestionString, feedback)
   def setLanguage(language: String) = this.language = language.toLowerCase
 
   /* Getters */
@@ -59,8 +59,6 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def getDiscourseType(): String = discourseType
   def getEntity(): DBpediaResource = entity
   def getEntityFullUri() = entity.getFullUri
-  def getEntitySuggestion(): DBpediaResource = entitySuggestion
-  def getEntitySuggestionFullUri() = entitySuggestion.getFullUri
   def getSurfaceForm(): SurfaceForm = surfaceForm
   def getSurfaceFormName(): SurfaceForm = surfaceForm
   def getOffset(): Int = offset
@@ -77,12 +75,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
       list = list :+ discourseType
-    list = list :+ entity.getFullUri
-    if(entitySuggestion == null)
-      list = list :+ SpotlightFeedback.emptyFieldRepresentation
-    else
-      list = list :+ entitySuggestion.getFullUri
-    list = list ++ List(surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
+    list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
     if(language == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
@@ -98,10 +91,6 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def toDBpediaResourceOccurrence():DBpediaResourceOccurrence = {
     new DBpediaResourceOccurrence(entity, surfaceForm, text, offset)
   }
-
-  def toSuggestedDBpediaResourceOccurrence():DBpediaResourceOccurrence = {
-    new DBpediaResourceOccurrence(entitySuggestion, surfaceForm, text, offset)
-  }
 }
 
 object SpotlightFeedback {
@@ -109,8 +98,7 @@ object SpotlightFeedback {
   val emptyFieldRepresentation: String = "_"
   val nunOfFeedbackFields: Int = 11
 
-  private val feedbackPossibilitiesThatAcceptSuggestion: List[String] = List("incorrect")
-  private val allFeedbackPossibilities: List[String] = List("correct") ++ feedbackPossibilitiesThatAcceptSuggestion
+  private val allFeedbackPossibilities: List[String] = List("correct", "incorrect")
 
   private val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
 
@@ -140,25 +128,6 @@ object SpotlightFeedback {
   /* Create a valid docUrl of the correct type (URL) from the informed string document url (used at the HTTP request) or, if not possible, the default docUrl from the string text */
   private def createDocUrl(docUrlString: String, text: String): URL = createDocUrl(docUrlString, new Text(text))
 
-  /* Create a valid (or throw exception) entityUriSuggestion of the correct type (DBpediaResource) from the informed string entity uri suggestion (used at the HTTP request) */
-  private def createEntityUriSuggestion(entityUriSuggestionString: String, feedback: String): DBpediaResource = {
-    //Empty entityUriSuggestion is understand as it was not informed
-    if(entityUriSuggestionString == "")
-      return null
-
-    validateEntityUriSuggestion(feedback)
-
-    new DBpediaResource(entityUriSuggestionString)
-  }
-
-  /* Validate the optional attribute entityUriSuggestion */
-  private def validateEntityUriSuggestion(feedback: String): Boolean = {
-    //Verify if the informed feedback is one of the ones that accept suggestion (e.g. "incorrect" accept, but "correct" do not)
-    if(!feedbackPossibilitiesThatAcceptSuggestion.contains(feedback))
-        throw new IllegalArgumentException("\"%s\" is not a valid feedback or do not accept suggestion. List of valid feedback that accept suggestions: %s".format(feedback, feedbackPossibilitiesThatAcceptSuggestion.toString()))
-    true
-  }
-
   /* Validate the obligatory attributes of SpotlightFeedback */
   private def validate(text: Text, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
                        feedback: String, systems: List[String], isManualFeedback: Boolean): Boolean = {
@@ -186,10 +155,6 @@ object SpotlightFeedback {
   
   def getAllFeedbackPossibilities(): List[String] = {
     allFeedbackPossibilities
-  }
-
-  def getFeedbackPossibilitiesThatAcceptSuggestion() : List[String] = {
-    feedbackPossibilitiesThatAcceptSuggestion
   }
 
 }

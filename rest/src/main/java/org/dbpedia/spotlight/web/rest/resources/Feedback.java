@@ -63,7 +63,6 @@ public class Feedback {
                            @DefaultValue("") @FormParam("url") String docUrlString,                          //Optional, auto-generated if not informed.
                            @DefaultValue("") @FormParam("discourse_type") String discourseType,              //Optional
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
-                           @DefaultValue("") @FormParam("right_entity") String entityUriSuggestion,          //Optional
                            @DefaultValue("") @FormParam("surface_form") String surfaceForm,
                            @DefaultValue("0") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
@@ -79,7 +78,7 @@ public class Feedback {
             Authentication.authenticate(clientIp, key);
 
             //Validate and Standardize the feedback, creating a standard feedback
-            SpotlightFeedback spotlightFeedback =  new SpotlightFeedback(text, docUrlString, discourseType, entityUri, entityUriSuggestion, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
+            SpotlightFeedback spotlightFeedback =  new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
 
             //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
