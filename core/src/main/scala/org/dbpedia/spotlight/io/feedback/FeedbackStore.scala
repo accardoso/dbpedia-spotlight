@@ -13,6 +13,14 @@ import org.dbpedia.spotlight.model.SpotlightFeedback
 trait FeedbackStore {
   /* Add (append) the new feedback at the end of the storing file/database using the specific format */
   def add(feedback: SpotlightFeedback)
+
+  def addBatch(src: List[SpotlightFeedback]) {
+    src.foreach(add(_))
+  }
+
+  def addBatch(src: FeedbackLoader) {
+    addBatch(src.load())
+  }
 }
 
 /**
@@ -71,3 +79,9 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
     output.flush
   }
 }
+
+/*
+class LuceneFeedbackStore(output: List[FeedbackOccurrences]) extends FeedbackStore {
+  *IMPORTANT*: It is implemented at index/org.dbpedia.spotlight.io.LuceneFeedbackStore.scala
+}
+ */
