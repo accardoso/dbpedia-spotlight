@@ -129,6 +129,6 @@ object LuceneFeedbackStore {
   }
 
   def main(arg: Array[String]) {
-    usageExample2()
+    usageExample1()
   }
 }
