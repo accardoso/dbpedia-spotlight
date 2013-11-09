@@ -32,7 +32,21 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
   }
 
   def storeFeedbackBatch(feedbackList: List[SpotlightFeedback]) = {
-    feedbackList.foreach(storeFeedback(_))
+    if(stores.isEmpty)
+      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
+
+    for (store <- stores){
+      store.addAll(feedbackList)
+    }
+  }
+
+  def storeFeedbackBatch(feedbackLoader: FeedbackLoader) = {
+    if(stores.isEmpty)
+      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
+
+    for (store <- stores){
+      store.addAll(feedbackLoader)
+    }
   }
 
 }

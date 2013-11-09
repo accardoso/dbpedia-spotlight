@@ -14,13 +14,12 @@ trait FeedbackStore {
   /* Add (append) the new feedback at the end of the storing file/database using the specific format */
   def add(feedback: SpotlightFeedback)
 
-  def addBatch(src: List[SpotlightFeedback]) {
-    src.foreach(add(_))
-  }
+  /* Add (append) a batch of new feedback at the end of the storing file/database using the specific format */
+  def addAll(src: List[SpotlightFeedback]) = src.foreach(add(_))
 
-  def addBatch(src: FeedbackLoader) {
-    addBatch(src.load())
-  }
+  /* Convert all feedback loaded at the FeedbackLoader and add them at the end of the storing file/database using the specific format
+  * Note: addBatch(src: FeedbackLoader) and convertFrom(src: FeedbackLoader) are equivalent. */
+  def convertFrom(src: FeedbackLoader) = addAll(src.load())
 }
 
 /**
