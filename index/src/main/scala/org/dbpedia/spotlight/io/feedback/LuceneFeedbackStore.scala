@@ -28,10 +28,25 @@ class LuceneFeedbackStore(output: List[(String,OccurrenceContextIndexer)]) exten
 
   //End-Constructor
 
-
-  def add(feedback: SpotlightFeedback) {
+  private def addWithoutClose(feedback: SpotlightFeedback): Int = {
     val i = output.indexWhere(_._1 == feedback.getFeedback())
     output(i)._2.add(feedback.toDBpediaResourceOccurrence())
+    i
+  }
+
+  def add(feedback: SpotlightFeedback) {
+    val openIndexer = addWithoutClose(feedback)
+    output(openIndexer)._2.close()
+  }
+
+  override def addBatch(src: List[SpotlightFeedback]) {
+    var openIndexersID: List[Int] = List()
+    var openIndexer: Int = -1
+    src.foreach{ feedback =>
+      openIndexer = addWithoutClose(feedback)
+      openIndexersID = openIndexersID :+ openIndexer
+    }
+    openIndexersID.distinct.foreach(output(_)._2.close())
   }
 }
 
@@ -50,8 +65,7 @@ object LuceneFeedbackStore {
     var defaultParam: List[(String, File)] = List()
     var indexPossibilityDir: File = null
     SpotlightFeedback.getAllFeedbackPossibilities().foreach{ possibility =>
-      //TODO :
-      //indexPossibilityDir = //copy the base Index directory and rename the copy as "index-<feedback-possibility>"
+      //TODO -> indexPossibilityDir = //copy the base Index directory and rename the copy as "index-<feedback-possibility>"
       defaultParam = defaultParam :+ (possibility, indexPossibilityDir)
     }
 
@@ -85,4 +99,17 @@ object LuceneFeedbackStore {
     new MergedOccurrencesContextIndexer(lucene)
   }
 
+  /* Example of how call and run this storage class */
+  def main(arg: Array[String]) {
+    val indexOutputBaseDir: String = "/home/alexandre/Projects/empty-index/"
+    val outputC = ("correct", new File(indexOutputBaseDir + "index-correct"))
+    val outputI = ("incorrect", new File(indexOutputBaseDir + "index-incorrect"))
+
+    val lstore = new LuceneFeedbackStore(Array(outputC,outputI))
+
+    val f1 = new SpotlightFeedback("Berlin is capital of Germany", "Berlin", "Berlin", 1, "correct", "user usere usera", true)
+    lstore.add(f1)
+    val f2 = new SpotlightFeedback("Berlin is capital of Germany", "", "news" , "Berlin_(band)", "Berlin", 1, "incorrect", "user user user", true, "english")
+    lstore.add(f2)
+  }
 }
