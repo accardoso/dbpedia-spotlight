@@ -20,6 +20,7 @@ package org.dbpedia.spotlight.web.rest.resources;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.dbpedia.spotlight.io.feedback.LuceneFeedbackStore;
 import org.dbpedia.spotlight.web.rest.Server;
 import org.dbpedia.spotlight.web.rest.ServerUtils;
 import javax.servlet.http.HttpServletRequest;
@@ -34,6 +35,7 @@ import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
 import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
 
 import java.io.File;
+import org.dbpedia.spotlight.web.rest.Server;
 
 /**
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
@@ -85,10 +87,9 @@ public class Feedback {
             //Create a manager for multiples stores and register its stores
             FeedbackMultiStore multiStore = new FeedbackMultiStore(); //Create the empty Multi-Store
             multiStore.registerStore(new TSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and default named .tsv file
-            multiStore.registerStore(new TSVFeedbackStore(storageFolderPath, "feedbackStoreBackup"));  //Create and register a store that output to a auto-created but  manually named (feedbackStoreBackup) .tsv file
             multiStore.registerStore(new CSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and  default named .csv file
-            multiStore.registerStore(new CSVFeedbackStore(new File(storageFolderPath + File.separator + "feedbackStoreBackup.csv"))); //Create a store that output to a manually created .csv file
             multiStore.registerStore(new TSVFeedbackStore(System.out)); //Create and register a store that output to a OutputStream auto-converting it to a Writer
+            multiStore.registerStore(new LuceneFeedbackStore(storageFolderPath + File.separator + "feedbackStore.luceneIndex"));
 
             //Store the feedback into all stores registered at multiStore
             multiStore.storeFeedback(spotlightFeedback);

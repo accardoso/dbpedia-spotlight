@@ -1,134 +1,103 @@
 package org.dbpedia.spotlight.io.feedback
 
-import org.dbpedia.spotlight.model.{Factory, SpotlightFeedback}
+import org.dbpedia.spotlight.model.SpotlightFeedback
 import org.dbpedia.spotlight.lucene.index.{MergedOccurrencesContextIndexer, OccurrenceContextIndexer}
 import java.io.File
 import org.dbpedia.spotlight.lucene.LuceneManager
-import org.apache.lucene.store.FSDirectory
-import org.dbpedia.spotlight.util.IndexingConfiguration
-
+import org.apache.lucene.store.{AlreadyClosedException, FSDirectory}
 
 /**
- * Stores the feedback in its respective Lucene index. Each feedback possibility has a respective index.
+ * Stores the feedback in its respective Lucene index. Each feedback possibility must have one respective index.
  *
  * @author Alexandre Cançado Cardoso - accardoso
  *
- * @constructor output: List[(String,OccurrenceContextIndexer)] -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index.
- * @constructor output: List[(String,File)] -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index folder (a OccurrenceContextIndexer is auto-created to open and write in this index).
+ * @constructor (output: List[(String,OccurrenceContextIndexer)]) -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index.
+ * @constructor (indexDirectoryByFeedbackPossibility: Array[(String, File)]) -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index folder (a OccurrenceContextIndexer is auto-created to open and write in this index).  (If the directories do not exist they will be created with a empty index, default named)
+ * @constructor (storageRootFolderPath: String) -> The directory path where has one index folder for each possibility. This folders must be named as: "index-< possibility_name >" (If the directories do not exist they will be created with a empty index)
  */
 
-class LuceneFeedbackStore(output: List[(String,OccurrenceContextIndexer)]) extends FeedbackStore {
-  def this(output: Array[(String, File)]) = this(LuceneFeedbackStore.toStandardParam(output.toList))
-  /*def this(baseLuceneIndex: File) = this(LuceneFeedbackStore.createDefaultFiles(baseLuceneIndex))*/
+class LuceneFeedbackStore(output: List[(String,MergedOccurrencesContextIndexer)]) extends FeedbackStore {
+  def this(indexDirectoryByFeedbackPossibility: Array[(String, File)]) = this(LuceneFeedbackStore.toStandardParam(indexDirectoryByFeedbackPossibility))
+  def this(storageRootFolderPath: String) = this(LuceneFeedbackStore.createDefaultFiles(storageRootFolderPath).toArray)
 
+  //Garantee that all indexes are closed after the construction
+  closeAllIndexes
+
+  //
   if(output.length != SpotlightFeedback.getAllFeedbackPossibilities().length)
     throw new ArrayIndexOutOfBoundsException("Must be informed 1 output index for each of the %d feedback possibilities.".format(SpotlightFeedback.getAllFeedbackPossibilities().length))
-
-  output.foreach{ index =>
-    if(!SpotlightFeedback.getAllFeedbackPossibilities().contains(index._1))
-      throw new NoSuchFieldException(("%s is not a feedback possibility: %s").format(index._1))
+  output.foreach{ element =>
+    if(!SpotlightFeedback.getAllFeedbackPossibilities().contains(element._1))
+      throw new NoSuchFieldException(("%s is not a feedback possibility: %s").format(element._1))
   }
 
   //End-Constructor
 
-  private def addWithoutClose(feedback: SpotlightFeedback): Int = {
-    val i = output.indexWhere(_._1 == feedback.getFeedback())
-    output(i)._2.add(feedback.toDBpediaResourceOccurrence())
-    i
-  }
-
+  /* Store (add/append) the informed feedback to the index of the respective possibility and close the index after storage */
   def add(feedback: SpotlightFeedback) {
-    val openIndexer = addWithoutClose(feedback)
-    output(openIndexer)._2.close()
+    val id = output.indexWhere(_._1 == feedback.getFeedback())
+    output(id)._2.add(feedback.toDBpediaResourceOccurrence())
+    LuceneFeedbackStore.closeIndex(output(id)._2)
   }
 
-  override def addAll(src: List[SpotlightFeedback]) {
-    var openIndexersID: List[Int] = List()
-    var openIndexer: Int = -1
-    src.foreach{ feedback =>
-      openIndexer = addWithoutClose(feedback)
-      openIndexersID = openIndexersID :+ openIndexer
+  def closeAllIndexes() {
+    output.foreach{ element =>
+      LuceneFeedbackStore.closeIndex(element._2)
     }
-    openIndexersID.distinct.foreach(output(_)._2.close())
   }
+
 }
 
 object LuceneFeedbackStore {
 
-  val indexingConfigFileName: String = "/home/alexandre/Projects/empty-index/server.properties"
+  /* Create the default indexes directories inside the informed directory */
+  def createDefaultFiles(outputRootDirectoryPath: String): List[(String, File)] = {
+    val outputDir = new File(outputRootDirectoryPath)
+    if(outputDir.exists() && !outputDir.isDirectory)
+      throw new IllegalArgumentException("%s already exist and it is not a directory.".format(outputRootDirectoryPath))
 
-  /*def createDefaultFiles(baseLuceneIndex: File): List[(String, OccurrenceContextIndexer)] = {
-    if(!baseLuceneIndex.exists())
-      throw new NoSuchElementException("Could not find the lucene index directory at %s".format(baseLuceneIndex.getCanonicalPath))
-    if(!baseLuceneIndex.isDirectory())
-      throw new IllegalArgumentException("The informed base lucene index must be a directory containing a lucene index.")
+    var indexes: List[(String, File)] = List()
 
-    var defaultParam: List[(String, File)] = List()
-    var indexPossibilityDir: File = null
     SpotlightFeedback.getAllFeedbackPossibilities().foreach{ possibility =>
-      throw new Exception("Method implementation is not finished!")
-      //TODO: indexPossibilityDir = /* copy of the base Index directory, and this copy is renamed as "index-<feedback_possibility>" */
-      defaultParam = defaultParam :+ (possibility, indexPossibilityDir)
+      indexes = indexes :+ (possibility, new File(outputRootDirectoryPath+File.separator+"index-"+possibility))
     }
 
-    toStandardParam(defaultParam)
+    indexes
   }
-*/
 
-  def toStandardParam(list: List[(String, File)]): List[(String, OccurrenceContextIndexer)] = {
-    var output: List[(String, OccurrenceContextIndexer)] = List()
+  /* Convert the output index reference of each possibility Directory to a OccurrenceContextIndexer */
+  def toStandardParam(list: Array[(String, File)]): List[(String, MergedOccurrencesContextIndexer)] = {
+    var output: List[(String, MergedOccurrencesContextIndexer)] = List()
     list.foreach{ element =>
       output = output :+ (element._1, toOccurrenceContextIndexer(element._2))
     }
-    output
+    output.toList
   }
 
-  def toOccurrenceContextIndexer(file: File) : OccurrenceContextIndexer = {
-    /* Reference: /org/dbpedia/spotlight/lucene/index/IndexMergedOccurrences.scala (by maxjakob) */
-    val config = new IndexingConfiguration(indexingConfigFileName)
-    val similarity = Factory.Similarity.fromName("InvCandFreqSimilarity")
-    val analyzer = config.getAnalyzer
+  /* Convert the informed index directory to a OccurrencesContextIndexer */
+  def toOccurrenceContextIndexer(indexDirectory: File) : MergedOccurrencesContextIndexer = {
+    /* Based on /org/dbpedia/spotlight/lucene/index/IndexMergedOccurrences.scala (by maxjakob) */
+    val lucene = new LuceneManager.BufferedMerging(FSDirectory.open(indexDirectory), 200000, false)
 
-    val lucene = new LuceneManager.BufferedMerging(FSDirectory.open(file), 200000, false)
-    lucene.setContextSimilarity(similarity)
-    lucene.setDefaultAnalyzer(analyzer)
-
-    if (!file.exists()) {
+    if (!indexDirectory.exists()) {
       lucene.shouldOverwrite = true
-      file.mkdir()
+      indexDirectory.mkdir()
     } else {
+      if(!indexDirectory.isDirectory)
+        throw new IllegalArgumentException("%s already exist and it is not a directory.".format(indexDirectory.getCanonicalPath))
+
       lucene.shouldOverwrite = false
     }
 
     new MergedOccurrencesContextIndexer(lucene)
   }
 
-  /*
-   Examples of how call and run this storage class
-   (created when the feedback possibilities were "correct"/"incorrect" only)
-  */
-  def usageExample1() {
-    val outputToFeedbackPossibility0 = ("correct", new File("/home/alexandre/Projects/empty-index/index-correct"))
-    val outputToFeedbackPossibility1 = ("incorrect", new File("/home/alexandre/Projects/empty-index/index-incorrect"))
-
-    val luceneStore = new LuceneFeedbackStore(Array(outputToFeedbackPossibility0,outputToFeedbackPossibility1))
-
-    val feedback1 = new SpotlightFeedback("Berlin is capital of Germany", "Berlin", "Berlin", 1, "correct", "user0 user1 user2", true)
-    val feedback2 = new SpotlightFeedback("Berlin is capital of Germany", "", "news" , "Berlin_(band)", "Berlin", 1, "incorrect", "user2 user4", true, "english")
-    luceneStore.addAll(List(feedback1, feedback2))
-  }
-  def usageExample2() {
-    val outputToFeedbackPossibility0 = ("correct", new File("/home/alexandre/Projects/empty-index/index-correct"))
-    val outputToFeedbackPossibility1 = ("incorrect", new File("/home/alexandre/Projects/empty-index/index-incorrect"))
-
-    val multiStore: FeedbackMultiStore = new FeedbackMultiStore
-    multiStore.registerStore(new LuceneFeedbackStore(Array(outputToFeedbackPossibility0,outputToFeedbackPossibility1)))
-
-    val feedback1 = new SpotlightFeedback("Berlin is capital of Germany", "Berlin", "Berlin", 1, "correct", "user0 user1 user2", true)
-    multiStore.storeFeedback(feedback1)
+  def closeIndex(index: MergedOccurrencesContextIndexer) {
+    try{
+      index.close()
+    }catch {
+      case e: AlreadyClosedException =>
+    }
   }
 
-  def main(arg: Array[String]) {
-    usageExample1()
-  }
 }
