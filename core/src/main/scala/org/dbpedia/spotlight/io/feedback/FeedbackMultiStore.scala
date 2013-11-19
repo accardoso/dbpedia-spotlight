@@ -21,37 +21,33 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
     stores = stores :+ store
   }
 
-  /* Add the received standard feedback to all registered stores */
+  def validateStoreRequest(): Boolean = {
+    if(stores.isEmpty)
+      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
+
+    return true
+  }
+
+  /* Add the SpotlightFeedback to all registered stores */
   def storeFeedback(feedback: SpotlightFeedback) = {
-    if(stores.isEmpty)
-      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
-
-    for (store <- stores){
-      store.add(feedback)
-    }
+    validateStoreRequest()
+    stores.foreach(_.add(feedback))
   }
 
+  /* Add each SpotlightFeedback at the list to all registered stores */
   def storeFeedbackBatch(feedbackList: List[SpotlightFeedback]) = {
-    if(stores.isEmpty)
-      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
-
-    for (store <- stores){
-      store.addAll(feedbackList)
-    }
+    validateStoreRequest()
+    stores.foreach(_.addAll(feedbackList))
   }
 
-  def storeAllFeedbackIn(feedbackLoader: FeedbackLoader) = {
-    if(stores.isEmpty)
-      throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
-
-    for (store <- stores){
-      store.convertFrom(feedbackLoader)
-    }
+  /* Add each SpotlightFeedback loaded by the FeedbackLoader to all registered stores */
+  def storeAllFeedbackFrom(feedbackLoader: FeedbackLoader) = {
+    validateStoreRequest()
+    stores.foreach(_.convertFrom(feedbackLoader))
   }
 
-  def close() = stores.foreach(_.close())
-
-  def forceClose() = stores.foreach(_.forceClose())
+  /* Close the the files/databases tha request to be closed to allow future writings and readings */
+  def close() = stores.foreach(_.finalizeStorage())
 
 }
 

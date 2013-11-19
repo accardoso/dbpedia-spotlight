@@ -1,7 +1,7 @@
 package org.dbpedia.spotlight.io.feedback
 
 import org.dbpedia.spotlight.model.SpotlightFeedback
-import org.dbpedia.spotlight.lucene.index.{MergedOccurrencesContextIndexer, OccurrenceContextIndexer}
+import org.dbpedia.spotlight.lucene.index.MergedOccurrencesContextIndexer
 import java.io.File
 import org.dbpedia.spotlight.lucene.LuceneManager
 import org.apache.lucene.store.{AlreadyClosedException, FSDirectory}
@@ -11,7 +11,7 @@ import org.apache.lucene.store.{AlreadyClosedException, FSDirectory}
  *
  * @author Alexandre Cançado Cardoso - accardoso
  *
- * @constructor (output: List[(String,OccurrenceContextIndexer)]) -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index.
+ * @constructor (output: List[(String,MergedOccurrencesContextIndexer)]) -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index.
  * @constructor (indexDirectoryByFeedbackPossibility: Array[(String, File)]) -> A list o Tuple2 where the first element is the feedback possibility and the second is the respective Lucene index folder (a OccurrenceContextIndexer is auto-created to open and write in this index).  (If the directories do not exist they will be created with a empty index, default named)
  * @constructor (storageRootFolderPath: String) -> The directory path where has one index folder for each possibility. This folders must be named as: "index-< possibility_name >" (If the directories do not exist they will be created with a empty index)
  */
@@ -20,6 +20,7 @@ class LuceneFeedbackStore(output: List[(String,MergedOccurrencesContextIndexer)]
   def this(indexDirectoryByFeedbackPossibility: Array[(String, File)]) = this(LuceneFeedbackStore.toStandardParam(indexDirectoryByFeedbackPossibility))
   def this(storageRootFolderPath: String) = this(LuceneFeedbackStore.createDefaultFiles(storageRootFolderPath).toArray)
 
+  //Validate the output: verify if there is at least 1 and just 1 output indexer for each feedback possibility
   if(output.length != SpotlightFeedback.getAllFeedbackPossibilities().length)
     throw new ArrayIndexOutOfBoundsException("Must be informed 1 output index for each of the %d feedback possibilities.".format(SpotlightFeedback.getAllFeedbackPossibilities().length))
   output.foreach{ element =>
@@ -34,15 +35,12 @@ class LuceneFeedbackStore(output: List[(String,MergedOccurrencesContextIndexer)]
     output(id)._2.add(feedback.toDBpediaResourceOccurrence())
   }
 
-  def closeAllIndexes() {
+  /* Close all MergedOccurrencesContextIndexer of the output */
+  def finalizeStorage() {
     output.foreach{ element =>
       LuceneFeedbackStore.closeIndexer(element._2)
     }
   }
-
-  def close() = closeAllIndexes()
-
-  def forceClose() = closeAllIndexes()
 
 }
 
@@ -90,6 +88,7 @@ object LuceneFeedbackStore {
     new MergedOccurrencesContextIndexer(lucene)
   }
 
+  /* Close the informed indexer (if it is already closed then disregard) */
   def closeIndexer(indexer: MergedOccurrencesContextIndexer) {
     try{
       indexer.close()

@@ -17,15 +17,11 @@ trait FeedbackStore {
   /* Add (append) a batch of new feedback at the end of the storing file/database using the specific format */
   def addAll(src: List[SpotlightFeedback]) = src.foreach(add(_))
 
-  /* Convert all feedback loaded at the FeedbackLoader and add them at the end of the storing file/database using the specific format
-  * Note: addBatch(src: FeedbackLoader) and convertFrom(src: FeedbackLoader) are equivalent. */
+  /* Convert all feedback loaded at the FeedbackLoader and add them at the end of the storing file/database using the specific format */
   def convertFrom(src: FeedbackLoader) = addAll(src.load())
 
-  /* Close the store, only if the storage format need. */
-  def close()
-
-  /* Compulsorily close the store */
-  def forceClose()
+  /* Finalize (close) the storage file/database (only if the storage format need). */
+  def finalizeStorage()
 }
 
 /**
@@ -40,11 +36,8 @@ abstract class CharacterSVFeedbackStore(output: Writer, separator: Char)  extend
     output.flush()
   }
 
-  /* Close a CharacterSVFeedbackStore is not needed. Because any usage problem happens if do not close the write. */
-  def close() {}
-
-  /* Close the output writer */
-  def forceClose() = output.close()
+  /* Close the CharacterSVFeedbackStore is not needed. Because any usage problem happens if do not close the output (Writer). */
+  def finalizeStorage() {}
 }
 
 /**
