@@ -40,7 +40,7 @@ class LuceneFeedbackStore(output: List[(String,MergedOccurrencesContextIndexer)]
     }
   }
 
-  override def close() = closeAllIndexes()
+  def close() = closeAllIndexes()
 
   def forceClose() = closeAllIndexes()
 

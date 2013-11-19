@@ -21,22 +21,42 @@ trait FeedbackStore {
   * Note: addBatch(src: FeedbackLoader) and convertFrom(src: FeedbackLoader) are equivalent. */
   def convertFrom(src: FeedbackLoader) = addAll(src.load())
 
-  def close() = {}
+  /* Close the store, only if the storage format need. */
+  def close()
 
+  /* Compulsorily close the store */
   def forceClose()
-
 }
 
 /**
- * Stores the feedback in a TSV file
- *
- * @constructor (output: Writer) -> Main constructor, receive a Writer where will append all new feedback.
- * @constructor (stream: OutputStream) -> receive a OutputStream and pass it into a Writer.
- * @constructor (file: File) -> receive a File and pass it into a Writer.
- * @constructor (storageFolderPath: String , storageFileName: String) -> create a new File named as informed at storageFileName in the paht informed at storageFolderPath, and pass it into a Writer.
- * @constructor (storageFolderPath: String) -> create a new File with the default name ("feedbackStore") in the path informed at storageFolderPath, and pass it into a Writer.
+ * Stores the feedback in a Character-Separated Values file
  */
-class TSVFeedbackStore(output: Writer) extends FeedbackStore {
+abstract class CharacterSVFeedbackStore(output: Writer, separator: Char)  extends FeedbackStore {
+
+  /* Add (append) the new feedback at the end of the storing file/database using the separator */
+  def add(feedback: SpotlightFeedback) = {
+    output.append("\n")
+    output.append(feedback.mkString(separator.toString))
+    output.flush()
+  }
+
+  /* Close a CharacterSVFeedbackStore is not needed. Because any usage problem happens if do not close the write. */
+  def close() {}
+
+  /* Close the output writer */
+  def forceClose() = output.close()
+}
+
+/**
+* Stores the feedback in a Tab-Separated Values (.tsv) file
+*
+* @constructor (output: Writer) -> Main constructor, receive a Writer where will append all new feedback.
+* @constructor (stream: OutputStream) -> receive a OutputStream and pass it into a Writer.
+* @constructor (file: File) -> receive a File and pass it into a Writer.
+* @constructor (storageFolderPath: String , storageFileName: String) -> create a new File named as informed at storageFileName in the paht informed at storageFolderPath, and pass it into a Writer.
+* @constructor (storageFolderPath: String) -> create a new File with the default name ("feedbackStore") in the path informed at storageFolderPath, and pass it into a Writer.
+*/
+class TSVFeedbackStore(output: Writer) extends CharacterSVFeedbackStore(output, '\t') {
   /* Constructor with a OutputStream as output and converting it to a Writer */
   def this(stream: OutputStream) = this(new PrintWriter(stream))
   /* Constructor with a informed File as output and converting it to a appendable FileWriter */
@@ -46,28 +66,18 @@ class TSVFeedbackStore(output: Writer) extends FeedbackStore {
     this(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".tsv"), true))
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
-
-  /* Add (append) the new feedback at the end of the storing file/database using the tsv format */
-  def add(feedback: SpotlightFeedback) = {
-    output.append("\n")
-    output.append(feedback.mkString("\t"))
-    output.flush()
-  }
-
-  def forceClose() = output.close()
-
 }
 
 /**
- * Stores the feedback in a CSV file
- *
- * @constructor output: Writer -> Main constructor, receive a Writer where will append all new feedback.
- * @constructor stream: OutputStream -> receive a OutputStream and pass it into a Writer.
- * @constructor file: File -> receive a File and pass it into a Writer.
- * @constructor storageFolderPath: String , storageFileName: String -> create a new File named as informed at storageFileName in the paht informed at storageFolderPath, and pass it into a Writer.
- * @constructor storageFolderPath: String -> create a new File with the default name ("feedbackStore") in the path informed at storageFolderPath, and pass it into a Writer.
- */
-class CSVFeedbackStore(output: Writer) extends FeedbackStore {
+* Stores the feedback in a Comma-Separated Values (.csv) file
+*
+* @constructor output: Writer -> Main constructor, receive a Writer where will append all new feedback.
+* @constructor stream: OutputStream -> receive a OutputStream and pass it into a Writer.
+* @constructor file: File -> receive a File and pass it into a Writer.
+* @constructor storageFolderPath: String , storageFileName: String -> create a new File named as informed at storageFileName in the paht informed at storageFolderPath, and pass it into a Writer.
+* @constructor storageFolderPath: String -> create a new File with the default name ("feedbackStore") in the path informed at storageFolderPath, and pass it into a Writer.
+*/
+class CommaSVFeedbackStore(output: Writer) extends CharacterSVFeedbackStore(output, ',') {
   /* Constructor with a OutputStream as output and converting it to a Writer */
   def this(stream: OutputStream) = this(new PrintWriter(stream))
   /* Constructor with a informed File as output and converting it to a appendable FileWriter */
@@ -77,20 +87,10 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
     this(new FileWriter(new File(storageFolderPath + File.separator + storageFileName + ".csv"), true))
   /* Constructor with default storage file name */
   def this(storageFolderPath: String) = this(storageFolderPath, "feedbackStore")
-
-  /* Add (append) the new feedback at the end of the storing file/database using the csv format */
-  def add(feedback: SpotlightFeedback) = {
-    output.append("\n")
-    output.append(feedback.mkString(","))
-    output.flush
-  }
-
-  def forceClose() = output.close()
-
 }
 
 /*
 class LuceneFeedbackStore(output: List[FeedbackOccurrences]) extends FeedbackStore {
   *IMPORTANT*: It is implemented at index/org.dbpedia.spotlight.io.LuceneFeedbackStore.scala
 }
- */
+*/
