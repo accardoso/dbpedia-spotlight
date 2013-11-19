@@ -20,6 +20,11 @@ trait FeedbackStore {
   /* Convert all feedback loaded at the FeedbackLoader and add them at the end of the storing file/database using the specific format
   * Note: addBatch(src: FeedbackLoader) and convertFrom(src: FeedbackLoader) are equivalent. */
   def convertFrom(src: FeedbackLoader) = addAll(src.load())
+
+  def close() = {}
+
+  def forceClose()
+
 }
 
 /**
@@ -49,6 +54,8 @@ class TSVFeedbackStore(output: Writer) extends FeedbackStore {
     output.flush()
   }
 
+  def forceClose() = output.close()
+
 }
 
 /**
@@ -77,6 +84,9 @@ class CSVFeedbackStore(output: Writer) extends FeedbackStore {
     output.append(feedback.mkString(","))
     output.flush
   }
+
+  def forceClose() = output.close()
+
 }
 
 /*

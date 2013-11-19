@@ -49,6 +49,10 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
     }
   }
 
+  def close() = stores.foreach(_.close())
+
+  def forceClose() = stores.foreach(_.forceClose())
+
 }
 
 

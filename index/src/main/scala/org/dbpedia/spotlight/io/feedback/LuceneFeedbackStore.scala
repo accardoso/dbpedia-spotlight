@@ -20,31 +20,29 @@ class LuceneFeedbackStore(output: List[(String,MergedOccurrencesContextIndexer)]
   def this(indexDirectoryByFeedbackPossibility: Array[(String, File)]) = this(LuceneFeedbackStore.toStandardParam(indexDirectoryByFeedbackPossibility))
   def this(storageRootFolderPath: String) = this(LuceneFeedbackStore.createDefaultFiles(storageRootFolderPath).toArray)
 
-  //Garantee that all indexes are closed after the construction
-  closeAllIndexes
-
-  //
   if(output.length != SpotlightFeedback.getAllFeedbackPossibilities().length)
     throw new ArrayIndexOutOfBoundsException("Must be informed 1 output index for each of the %d feedback possibilities.".format(SpotlightFeedback.getAllFeedbackPossibilities().length))
   output.foreach{ element =>
     if(!SpotlightFeedback.getAllFeedbackPossibilities().contains(element._1))
       throw new NoSuchFieldException(("%s is not a feedback possibility: %s").format(element._1))
   }
-
   //End-Constructor
 
   /* Store (add/append) the informed feedback to the index of the respective possibility and close the index after storage */
   def add(feedback: SpotlightFeedback) {
     val id = output.indexWhere(_._1 == feedback.getFeedback())
     output(id)._2.add(feedback.toDBpediaResourceOccurrence())
-    LuceneFeedbackStore.closeIndex(output(id)._2)
   }
 
   def closeAllIndexes() {
     output.foreach{ element =>
-      LuceneFeedbackStore.closeIndex(element._2)
+      LuceneFeedbackStore.closeIndexer(element._2)
     }
   }
+
+  override def close() = closeAllIndexes()
+
+  def forceClose() = closeAllIndexes()
 
 }
 
@@ -92,9 +90,9 @@ object LuceneFeedbackStore {
     new MergedOccurrencesContextIndexer(lucene)
   }
 
-  def closeIndex(index: MergedOccurrencesContextIndexer) {
+  def closeIndexer(indexer: MergedOccurrencesContextIndexer) {
     try{
-      index.close()
+      indexer.close()
     }catch {
       case e: AlreadyClosedException =>
     }
