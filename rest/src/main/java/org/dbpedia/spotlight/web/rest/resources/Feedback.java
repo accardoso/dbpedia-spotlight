@@ -32,10 +32,7 @@ import javax.ws.rs.core.UriInfo;
 import org.dbpedia.spotlight.io.feedback.FeedbackMultiStore;
 import org.dbpedia.spotlight.model.SpotlightFeedback;
 import org.dbpedia.spotlight.io.feedback.TSVFeedbackStore;
-import org.dbpedia.spotlight.io.feedback.CSVFeedbackStore;
-
 import java.io.File;
-import org.dbpedia.spotlight.web.rest.Server;
 
 /**
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
@@ -84,23 +81,24 @@ public class Feedback {
 
             //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
-            //Create a manager for multiples stores and register its stores
+            //Create a manager for multiples stores
             FeedbackMultiStore multiStore = new FeedbackMultiStore(); //Create the empty Multi-Store
+            //Register the stores to the manager
             multiStore.registerStore(new TSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and default named .tsv file
-            multiStore.registerStore(new CSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and  default named .csv file
-            multiStore.registerStore(new TSVFeedbackStore(System.out)); //Create and register a store that output to a OutputStream auto-converting it to a Writer
             multiStore.registerStore(new LuceneFeedbackStore(storageFolderPath + File.separator + "feedbackStore.luceneIndex"));
 
             //Store the feedback into all stores registered at multiStore
             multiStore.storeFeedback(spotlightFeedback);
+
+            //Close all stores that need to be closed
+            multiStore.close();
 
             //Answer that the feedback was stored right. (If not: an exception was threw before this point)
             return ServerUtils.ok("ok");
         } catch (Exception e) {
             e.printStackTrace();
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST). entity(ServerUtils.print(e)).type(MediaType.TEXT_HTML).build());
-        }
-
+       }
     }
 
 }
