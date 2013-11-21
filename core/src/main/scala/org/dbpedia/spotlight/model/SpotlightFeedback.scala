@@ -11,21 +11,21 @@ import org.dbpedia.spotlight.exceptions.InputException
 
 class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, entity: DBpediaResource,
                         surfaceForm: SurfaceForm, offset: Int, var feedback: String, var systems: List[String],
-                        isManualFeedback: Boolean, var language: String) {
+                        isManual: Boolean, var language: String) {
   /* Constructor for obligatory attributes only */
   def this(text: Text, entity: DBpediaResource, surfaceForm: SurfaceForm, offset: Int, feedback: String,
-           systems: List[String], isManualFeedback: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text),
-           "", entity, surfaceForm, offset, feedback, systems, isManualFeedback, "")
-  /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
-  def this(text: String, entityUri: String, surfaceFormString: String, offset: Int, feedback: String,
-           systemsString: String, isManualFeedback: Boolean) = this(new Text(text), new DBpediaResource(entityUri),
-           new SurfaceForm(surfaceFormString), offset, feedback, systemsString.split(" ").toList, isManualFeedback)
+           systems: List[String], isManual: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text),
+           "", entity, surfaceForm, offset, feedback, systems, isManual, "")
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrlString: String, discourseType: String, entityUri: String, surfaceFormString: String,
-           offset: Int, feedback: String, systemsString: String, isManualFeedback: Boolean, language:String)
-    = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
-           new DBpediaResource(entityUri), new SurfaceForm(surfaceFormString), offset, feedback,
-           systemsString.split(" ").toList, isManualFeedback, language)
+  def this(text: String, docUrlString: String, discourseType: String, entityUriString: String, surfaceFormString: String,
+           offset: Int, feedback: String, systemsString: String, isManualString: String, language:String)
+  = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
+    new DBpediaResource(entityUriString), new SurfaceForm(surfaceFormString), offset, feedback,
+    systemsString.split(" ").toList, SpotlightFeedback.convertIsManual(isManualString), language)
+  /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
+  def this(text: String, entityUriString: String, surfaceFormString: String, offset: Int, feedback: String,
+           systemsString: String, isManualString: String) = this(text, "", "", entityUriString, surfaceFormString,
+           offset, feedback, systemsString, isManualString, "")
 
   /* Standardize obligatory attributes */
   //Feedback must be lower case
@@ -40,7 +40,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   language = language.toLowerCase
 
   /* Validate obligatory attributes */
-  SpotlightFeedback.validate(text, entity, surfaceForm, offset, feedback, systems, isManualFeedback)
+  SpotlightFeedback.validate(text, entity, surfaceForm, offset, feedback, systems, isManual)
 
   //End-constructor
 
@@ -64,7 +64,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def getOffset(): Int = offset
   def getFeedback(): String = feedback
   def getSystems(): List[String] = systems
-  def getIsManualFeedback(): Boolean = isManualFeedback
+  def getisManual(): Boolean = isManual
   def getLanguage(): String = language
 
   def mkString(sep: String): String = {
@@ -75,7 +75,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
       list = list :+ discourseType
-    list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManualFeedback.toString)
+    list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManual.toString)
     if(language == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
@@ -130,27 +130,35 @@ object SpotlightFeedback {
 
   /* Validate the obligatory attributes of SpotlightFeedback */
   private def validate(text: Text, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
-                       feedback: String, systems: List[String], isManualFeedback: Boolean): Boolean = {
+                       feedback: String, systems: List[String], isManual: Boolean): Boolean = {
 
-    if (text == "")
+    if (text.text.equals(""))
       throw new InputException("text must be filled!")
-    if (entityUri == "")
+    if (entityUri.uri.equals(""))
       throw new InputException("entity_uri must be filled!")
-    if (systems.length == 0)
-      throw new InputException("systems must be filled!")
-    if (surfaceForm == "")
+    if (surfaceForm.name.equals(""))
       throw new InputException("surface_form must be filled!")
     if (offset<=0)
       throw new InputException("offset must be filled with a entity position (a positive value)!")
     if(!allFeedbackPossibilities.contains(feedback))
       throw new IllegalArgumentException("\"%s\" is not a valid feedback. List of valid ones: %s".format(feedback, allFeedbackPossibilities.toString()))
-    if(!isManualFeedback){
+    if (systems.length == 0)
+      throw new InputException("systems must be filled!")
+    if(!isManual){
       if(!systems.forall(automaticSystemsIds.contains(_)))
         throw new IllegalArgumentException("One or more systems are not registered. List of valid ones: %s . If it is a new system, please contact us for registration.".format(automaticSystemsIds))
     }
 
-    //It is valid
+    //No exception until now, so it is valid
     true
+  }
+
+  def convertIsManual(isManualString: String): Boolean = {
+    try{
+      return isManualString.toBoolean
+    }catch {
+      case e: NumberFormatException => throw new NumberFormatException("%s is not a valid is_manual_feedback, which must be a boolean (true/false - case insensitive)".format(isManualString))
+    }
   }
   
   def getAllFeedbackPossibilities(): List[String] = {

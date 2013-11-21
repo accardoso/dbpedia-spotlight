@@ -33,14 +33,9 @@ object FeedbackParser{
       }
       val feedback:String = (entity \\ "feedback").text.toString
       val systemIds:String = (entity \\ "systems").text.toString
-      var isManualFeedback:Boolean = false
-      try{
-        isManualFeedback = (entity \\ "is_manual_feedback").text.toBoolean
-      } catch {
-        case e: NumberFormatException => throw new NumberFormatException("is_manual_feedback must be a boolean: true or false (case insensitive)")
-      }
+      val isManual:String = (entity \\ "is_manual").text.toString
 
-      parsed = parsed :+ new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManualFeedback, language)
+      parsed = parsed :+ new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManual, language)
 
     }
 

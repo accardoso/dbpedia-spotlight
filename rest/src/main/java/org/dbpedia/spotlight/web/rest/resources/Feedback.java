@@ -63,12 +63,16 @@ public class Feedback {
                            @DefaultValue("") @FormParam("discourse_type") String discourseType,              //Optional
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
                            @DefaultValue("") @FormParam("surface_form") String surfaceForm,
-                           @DefaultValue("0") @FormParam("offset") int offset,
+                           @DefaultValue("-1") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
                            @DefaultValue("") @FormParam("systems") String systemIds,
-                           @DefaultValue("") @FormParam("is_manual_feedback") boolean isManualFeedback,
+                           @DefaultValue("") @FormParam("is_manual") String isManual,
                            @DefaultValue("") @FormParam("language") String language,                         //Optional
+                           @DefaultValue("") @FormParam("json_batch") String jsonBatch,                      //If informed then the interface shall disregard all other parameters (except key, that is used in authentication)
+                           @DefaultValue("") @FormParam("xml_batch") String xmlBatch,                        //If informed and jsonBatch is not then the interface shall disregard all other parameters (except key, that is used in authentication)
                            @Context HttpServletRequest request) throws Exception {
+
+        FeedbackMultiStore multiStore = null;
 
         try {
             String clientIp = request.getRemoteAddr();
@@ -76,19 +80,32 @@ public class Feedback {
             //Request authentication (throws an exception if not a valid one)
             Authentication.authenticate(clientIp, key);
 
-            //Validate and Standardize the feedback, creating a standard feedback
-            SpotlightFeedback spotlightFeedback =  new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManualFeedback, language);
-
             //Create a folder to keep all storage files
             String storageFolderPath = FeedbackMultiStore.createStorageFolder("feedback-warehouse");
             //Create a manager for multiples stores
-            FeedbackMultiStore multiStore = new FeedbackMultiStore(); //Create the empty Multi-Store
+            multiStore = new FeedbackMultiStore(); //Create the empty Multi-Store
             //Register the stores to the manager
             multiStore.registerStore(new TSVFeedbackStore(storageFolderPath)); //Create and register a store that output to a auto-created and default named .tsv file
             multiStore.registerStore(new LuceneFeedbackStore(storageFolderPath + File.separator + "feedbackStore.luceneIndex"));
 
-            //Store the feedback into all stores registered at multiStore
-            multiStore.storeFeedback(spotlightFeedback);
+            if(!jsonBatch.equals("")){
+                try{
+                    //Parse the json received into a list of validated and standardized SpotlightFeedback and store each into all stores registered at multiStore
+                    multiStore.storeFeedbackBatch(FeedbackParser.fromJson(jsonBatch));
+                } catch (Exception e){
+                    throw new Exception("Could not parse at least one feedback of the batch. Then every feedback of the batch was rejected.");
+                }
+            }else if(!xmlBatch.equals("")){
+                try{
+                    //Parse the xml received into a list of validated and standardized SpotlightFeedback and store each into all stores registered at multiStore
+                    multiStore.storeFeedbackBatch(FeedbackParser.fromXml(xmlBatch));
+                } catch (Exception e){
+                    throw new Exception("Could not parse at least one feedback of the batch. Then every feedback of the batch was rejected.");
+                }
+            }else{
+                //Create a validated and standardized SpotlightFeedback from the post params and store it into all stores registered at multiStore
+                multiStore.storeFeedback(new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManual, language));
+            }
 
             //Close all stores that need to be closed
             multiStore.close();
@@ -96,6 +113,8 @@ public class Feedback {
             //Answer that the feedback was stored right. (If not: an exception was threw before this point)
             return ServerUtils.ok("ok");
         } catch (Exception e) {
+            if(multiStore != null)
+                multiStore.close();
             e.printStackTrace();
             throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST). entity(ServerUtils.print(e)).type(MediaType.TEXT_HTML).build());
        }
