@@ -19,10 +19,7 @@ import javax.ws.rs.core.Response
 
 @RunWith(classOf[JUnitRunner])
 class AuthenticationTest extends FlatSpec with ShouldMatchers {
-
-  /* Initialization */
-  AuthenticationTest.apiKeysFile = new File(Authentication.getApiKeysFilePath)
-  AuthenticationTest.bkpApiKeysFile = AuthenticationTest.createBkpApiKeysFile()
+  AuthenticationTest.initialization()
 
   /* Generation and Registration Interface Tests */
 
@@ -191,7 +188,9 @@ class AuthenticationTest extends FlatSpec with ShouldMatchers {
     keysAfterRemoval.mkString("\n") should be === registeredKeys.mkString("\n")
   }
 
-    //AuthenticationTest.restoreApiKeysFile()
+  "This test class" should "recover the original api keys file" in {
+    AuthenticationTest.finalization() should be === true
+  }
 }
 
 object AuthenticationTest {
@@ -214,52 +213,47 @@ object AuthenticationTest {
     }
   }
 
-  def copyFile(src: File, dest: File) {
-    if(!src.exists())
-      cleanFile(src) //It will write a empty file at src, and this will create a empty file
-    if(!src.isFile)
-      throw new IllegalArgumentException("The informed source to be copied must be a file and %s is not.".format(src.getCanonicalPath))
-
-    val reader = Source.fromFile(src)
-    val writer = new FileWriter(dest, true)
-    var firstLine: Boolean = true
-    reader.getLines.foreach{ line =>
-      if(firstLine){
-        firstLine = false
-        writer.append("\n")
-      }
-      writer.append(line)
-      writer.flush()
-    }
-    reader.close()
-    writer.close()
-  }
-
-  private def createBkpApiKeysFile(): File = {
-    val bkp = new File(apiKeysFile.getCanonicalPath + ".bkp.authentication.test.tmp")
-    //Ensures that bkp is empty
-    cleanFile(bkp)
-    //Make a back up of the the original spotlight api keys file
-    copyFile(apiKeysFile, bkp)
-    //Return the bkp
-    bkp
-  }
-
   def cleanFile(file: File) {
     val writer = new FileWriter(file, false)
     writer.write("")
     writer.close()
   }
 
-  private def restoreApiKeysFile() {
-    //Clean and copy the bkp back to the api keys file. It is slower but safer then delete the current apiKeysFile and rename the bkp file
-    cleanFile(apiKeysFile)
-    copyFile(bkpApiKeysFile, apiKeysFile)
+  private def initialization(){
+    apiKeysFile = new File(Authentication.getApiKeysFilePath)
 
-    //Delete the temp bkp
-    if(!bkpApiKeysFile.delete())
-      SpotlightLog.warn(this.getClass, "Could not delete the temporary back up of the api keys file: %s " +
-                                        "But the original api keys file was successfully restored.", bkpApiKeysFile.getCanonicalPath)
+    def createBkpApiKeysFile(): File = {
+      val bkp = new File(apiKeysFile.getCanonicalPath + ".bkp.authentication.test.tmp")
+      //Make a back up of the the original spotlight api keys file
+      val writer = new FileWriter(bkp, false)
+      writer.write(Source.fromFile(apiKeysFile).getLines().mkString("\n"))
+      writer.close()
+      //Return the bkp
+      bkp
+    }
+
+    bkpApiKeysFile = createBkpApiKeysFile()
+  }
+
+  private def finalization(): Boolean = {
+    if(!testOutputStream.delete)
+      SpotlightLog.warn(this.getClass, "Could not delete the temporary output stream file: %s ", testOutputStream.getCanonicalPath)
+
+    def restoreApiKeysFile(): Boolean = {
+      //Copy back the bkp to the api keys file (It is slower but safer then delete the current apiKeysFile and rename the bkp file)
+      val writer = new FileWriter(apiKeysFile, false)
+      writer.write(Source.fromFile(bkpApiKeysFile).getLines().mkString("\n"))
+      writer.close()
+
+      //Delete the temp bkp
+      if(!bkpApiKeysFile.delete())
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary back up of the api keys file: %s " +
+                                          "But the original api keys file was successfully restored.", bkpApiKeysFile.getCanonicalPath)
+
+      true
+    }
+
+    restoreApiKeysFile()
   }
 
 }
