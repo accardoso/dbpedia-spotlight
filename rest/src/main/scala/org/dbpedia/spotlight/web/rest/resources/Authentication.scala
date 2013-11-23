@@ -4,7 +4,6 @@ import javax.ws.rs.core.Response
 import javax.ws.rs.WebApplicationException
 import scala.io.Source
 import java.io.{File, FileWriter}
-import org.dbpedia.spotlight.log.SpotlightLog
 import java.security.MessageDigest
 import java.math.BigInteger
 import util.Random
@@ -19,12 +18,14 @@ import util.Random
 
 object Authentication {
 
-  val configFileName: String = "./conf/server.properties"
+  private val configFileName: String = "./conf/server.properties"
 
   /* The path for the file containing the registered api keys */
-  val apiKeysFilePath: String = getApiKeysFile(configFileName)
+  private val apiKeysFilePath: String = defineApiKeysFilePath(configFileName)
 
-  def getApiKeysFile(configFilePath: String): String = {
+  def getApiKeysFilePath: String = apiKeysFilePath
+
+  private def defineApiKeysFilePath(configFilePath: String): String = {
     AuthenticationConfig.setConfigFile(configFilePath)
     AuthenticationConfig.get("org.dbpedia.spotlight.authentication.apikeys", "rest/src/main/scala/org/dbpedia/spotlight/web/rest/resources/.api-keys")
   }
@@ -53,7 +54,7 @@ object Authentication {
   private def registerKey(newKey: String): Boolean = {
     //Verify if this key is available
     if(isRegistered(newKey)){
-      SpotlightLog.info(this.getClass, "This key is not available.")
+      println("This key is not available.")
       false
     }
 
@@ -66,13 +67,21 @@ object Authentication {
     true
   }
 
-  /* Generate a 27 characters api-key */
+  /* Generate a 25 characters api-key */
   private def generateKey(): String = {
     //Generate the md5 hash for a random number
     val md5 = MessageDigest.getInstance("MD5").digest(Random.nextLong().toString().getBytes())
     val bigInt = new BigInteger(1, md5)
-    //Represents bigInt using base 26 (all numbers and all alphabet letters) and convert it to String
-    bigInt.toString(26)
+    //Represents bigInt using base 36 (all numbers, 10,  and all alphabet letters, 26) and convert it to String.
+    //The max length of this md5 number using base 36 is 25 and left zeros are not represented
+    var key = bigInt.toString(36)
+    //As the left zeros are not represented we need to put then back
+    if(key.length != 25){
+      val leftZeros = List.fill(25 - key.length){"0"}
+      key = leftZeros.mkString("") + key
+    }
+    //Number of keys possibilities: 36^(26) = 2.9E40 unique keys
+    key
   }
 
   /* Remove the informed key from the api keys file */
@@ -98,14 +107,14 @@ object Authentication {
 
     //Delete the old api keys file
     if(!oldFile.delete())
-      SpotlightLog.warn(this.getClass(), "The key was removed correctly. But could not delete the temporary file at: %s", oldFile.getCanonicalPath)
+      println("The key was removed correctly. But could not delete the temporary file at: %s".format(oldFile.getCanonicalPath))
 
   true
   }
 
   /* Public method to run the new api key generation and registration interface */
   def newKeyInterface(){
-    SpotlightLog.info(this.getClass, "**** DBpedia-Spotlight new API key generation and registration interface ****" )
+    println("**** DBpedia-Spotlight new API key generation and registration interface ****")
     print("Do you want to generate and register a new api key? [y|n]" )
     val line = Console.readLine
 
@@ -117,30 +126,30 @@ object Authentication {
         newKey = generateKey()
         if(registerKey(newKey)){
           //Inform the new key and return
-          SpotlightLog.info(this.getClass, "The new Spotlight api key: %s", newKey)
+          println("The new Spotlight api key: %s".format(newKey))
           return
         }
       }
       //Give up to generate a new key
-      SpotlightLog.info(this.getClass, "The authentication api key generator try %d times, but any new key was generated." +
-        " Try again or contact the authentication module developer for more information.", tryTimes)
+      println("The authentication api key generator try %d times, but any new key was generated.".format(tryTimes) +
+              "\nTry again or contact the authentication module developer for more information.")
     }
 
-    SpotlightLog.info(this.getClass, "No api key was registered.")
+    println("No api key was registered.")
   }
 
   /* Public method to run the safe routine to remove api key */
   def removeKeyInterface(key: String){
-    SpotlightLog.info(this.getClass, "**** DBpedia-Spotlight API key removal interface ****" )
+    println("**** DBpedia-Spotlight API key removal interface ****" )
     print("Do you want to remove this api key: %s ? [y|n]".format(key))
     val line = Console.readLine
     if (line == "y") {
       if(removeKey(key))
-        SpotlightLog.info(this.getClass, "Successfully remove the api key: %s", key)
+        println("Successfully remove the api key: %s".format(key))
       else
-        SpotlightLog.error(this.getClass, "Could not remove the api key: %s", key)
+        println("ERROR: Could not remove the api key: %s".format(key))
     }else
-      SpotlightLog.info(this.getClass, "Api key removal canceled!")
+      println("Api key removal canceled!")
   }
 
 
@@ -151,5 +160,4 @@ object Authentication {
     else //Assume that arg(0) is the key to be removed
       removeKeyInterface(args(0))
   }
-
 }
