@@ -140,7 +140,7 @@ object Authentication {
 
   /* Public method to run the safe routine to remove api key */
   def removeKeyInterface(key: String){
-    println("**** DBpedia-Spotlight API key removal interface ****" )
+    println("**** DBpedia-Spotlight API key removal interface ****")
     print("Do you want to remove this api key: %s ? [y|n]".format(key))
     val line = Console.readLine
     if (line == "y") {
