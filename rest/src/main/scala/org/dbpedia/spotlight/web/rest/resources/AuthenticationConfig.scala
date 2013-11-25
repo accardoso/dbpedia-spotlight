@@ -12,11 +12,15 @@ import org.dbpedia.spotlight.exceptions.ConfigurationException
  */
 object AuthenticationConfig {
 
+  /* The default spotlight configuration file path */
   val defaultConfigFilePath: String = "conf/server.properties"
 
+  /* The spotlight configuration file where the authentication parameter are defined */
   private var configFile: File = new File(defaultConfigFilePath)
+  /* A Properties used to load the configs from the config file */
   private var properties : Properties = resetProperties()
 
+  /* Reset the Properties using the current configFile */
   private def resetProperties(): Properties = {
     properties = new Properties()
     properties.load(new FileInputStream(configFile))
