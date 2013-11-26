@@ -55,10 +55,8 @@ object Authentication {
   /* Register the new key, if it is available */
   private def registerKey(newKey: String): Boolean = {
     //Verify if this key is available
-    if(isRegistered(newKey)){
-      println("This key is not available.")
+    if(isRegistered(newKey))
       false
-    }
 
     //If it is available, append the new key to the end of apiKeyFile
     val writer = new FileWriter(new File(apiKeysFilePath), true)
@@ -82,7 +80,7 @@ object Authentication {
       val leftZeros = List.fill(25 - key.length){"0"}
       key = leftZeros.mkString("") + key
     }
-    //Number of keys possibilities: 36^(26) = 2.9E40 unique keys
+    //Number of keys possibilities: 25^(36) = 2.1E50 unique keys
     key
   }
 

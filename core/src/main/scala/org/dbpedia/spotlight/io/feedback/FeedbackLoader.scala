@@ -39,9 +39,9 @@ abstract class FeedbackFileLoader(src: File) extends FeedbackLoader{
   private def parserLine(line: String, sep: String): SpotlightFeedback = {
     val values: Array[String] = line.split(sep)
 
-    if(values.length != SpotlightFeedback.nunOfFeedbackFields)
+    if(values.length != SpotlightFeedback.nunOfFields)
       throw new UnsupportedOperationException(("Impossible to load feedback from file: %s\n" +
-        "All feedback must have %d fields").format(src.getCanonicalPath, SpotlightFeedback.nunOfFeedbackFields))
+        "All feedback must have %d fields").format(src.getCanonicalPath, SpotlightFeedback.nunOfFields))
 
     if(values(2) == SpotlightFeedback.emptyFieldRepresentation)
       values(2) = ""

@@ -4,28 +4,26 @@ import java.net.URL
 import org.dbpedia.spotlight.exceptions.InputException
 
 /**
- * An abstract data type for the Feedback (after standardization)
+ * An abstract data type for the Feedback.
  *
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, entity: DBpediaResource,
-                        surfaceForm: SurfaceForm, offset: Int, var feedback: String, var systems: List[String],
-                        isManual: Boolean, var language: String) {
+class SpotlightFeedback(text: Text, private var docUrl: URL, private var discourseType: String, entity: DBpediaResource,
+                        surfaceForm: SurfaceForm, offset: Int, private var feedback: String, private var systems: List[String],
+                        manual: Boolean, private var language: String) {
   /* Constructor for obligatory attributes only */
   def this(text: Text, entity: DBpediaResource, surfaceForm: SurfaceForm, offset: Int, feedback: String,
-           systems: List[String], isManual: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text),
-           "", entity, surfaceForm, offset, feedback, systems, isManual, "")
+           systems: List[String], manual: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text), "", entity, 
+           surfaceForm, offset, feedback, systems, manual, "")
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrlString: String, discourseType: String, entityUriString: String, surfaceFormString: String,
-           offset: Int, feedback: String, systemsString: String, isManualString: String, language:String)
-  = this(new Text(text), SpotlightFeedback.createDocUrl(docUrlString, text), discourseType,
-    new DBpediaResource(entityUriString), new SurfaceForm(surfaceFormString), offset, feedback,
-    systemsString.split(" ").toList, SpotlightFeedback.convertIsManual(isManualString), language)
+  def this(text: String, docUrl: String, discourseType: String, entityUri: String, surfaceForm: String, offset: Int, 
+           feedback: String, systems: String, manual: String, language:String) = this(new Text(text), 
+    SpotlightFeedback.defineDocUrl(docUrl, text), discourseType, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm),
+    offset, feedback, systems.split(" ").toList, SpotlightFeedback.convertManual(manual), language)
   /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
-  def this(text: String, entityUriString: String, surfaceFormString: String, offset: Int, feedback: String,
-           systemsString: String, isManualString: String) = this(text, "", "", entityUriString, surfaceFormString,
-           offset, feedback, systemsString, isManualString, "")
+  def this(text: String, entityUri: String, surfaceForm: String, offset: Int, feedback: String, systems: String, 
+           manual: String) = this(text, "", "", entityUri, surfaceForm, offset, feedback, systems, manual, "")
 
   /* Standardize obligatory attributes */
   //Feedback must be lower case
@@ -34,13 +32,16 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   systems = systems.map(_.toLowerCase())
 
   /* Standardize optional attributes */
+  //If no docUrl (or a empty url) was informed it is auto-generated
+  if(docUrl.toString.equals(docUrl.getProtocol)) //the url is only the protocol, eg.: "http://", "file://", "https://"
+    docUrl = SpotlightFeedback.createDefaultDocUrl(text)
   //Discourse type must be lower case or empty
   discourseType = discourseType.toLowerCase
   //Language must be lower case or empty
   language = language.toLowerCase
 
   /* Validate obligatory attributes */
-  SpotlightFeedback.validate(text, entity, surfaceForm, offset, feedback, systems, isManual)
+  SpotlightFeedback.validate(text, entity, surfaceForm, offset, feedback, systems, manual)
 
   //End-constructor
 
@@ -49,7 +50,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   /* Setters for the optional attributes receiving the HTTP interface format
   *  Allow to construct the SpotlightFeedback with the obligatory attributes and add only the useful optional ones.
   */
-  def setDocUrl(docUrlString: String) = this.docUrl = SpotlightFeedback.createDocUrl(docUrlString, text)
+  def setDocUrl(docUrlString: String) = this.docUrl = SpotlightFeedback.defineDocUrl(docUrlString, text)
   def setDiscourseType(discourseType: String) = this.discourseType = discourseType.toLowerCase
   def setLanguage(language: String) = this.language = language.toLowerCase
 
@@ -64,7 +65,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
   def getOffset(): Int = offset
   def getFeedback(): String = feedback
   def getSystems(): List[String] = systems
-  def getisManual(): Boolean = isManual
+  def isManual(): Boolean = manual
   def getLanguage(): String = language
 
   def mkString(sep: String): String = {
@@ -75,7 +76,7 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
       list = list :+ discourseType
-    list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), isManual.toString)
+    list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), manual.toString)
     if(language == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
@@ -84,19 +85,15 @@ class SpotlightFeedback(text: Text, var docUrl: URL, var discourseType: String, 
     list.mkString(sep)
   }
 
-  override def toString(): String = {
-    "SpotlightFeedback[" + this.mkString(" | ") + "]"
-  }
+  override def toString(): String = "SpotlightFeedback[" + this.mkString(" | ") + "]"
 
-  def toDBpediaResourceOccurrence():DBpediaResourceOccurrence = {
-    new DBpediaResourceOccurrence(entity, surfaceForm, text, offset)
-  }
+  def toDBpediaResourceOccurrence():DBpediaResourceOccurrence = new DBpediaResourceOccurrence(entity, surfaceForm, text, offset)
 }
 
 object SpotlightFeedback {
 
   val emptyFieldRepresentation: String = "_"
-  val nunOfFeedbackFields: Int = 11
+  val nunOfFields: Int = 10
 
   private val allFeedbackPossibilities: List[String] = List("correct", "incorrect")
 
@@ -105,7 +102,7 @@ object SpotlightFeedback {
   private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/" //If no doc_url is informed, Spotlight produce a default one with the root below and the text hash
 
   /* Create the default docUrl using the informed text */
-  private def createDefaultDocUrl(text: Text): URL = {
+  def createDefaultDocUrl(text: Text): URL = {
     if(text.text != "")
       new URL(SpotlightFeedback.defaultDocURLRoot + text.hashCode)
     else
@@ -113,7 +110,7 @@ object SpotlightFeedback {
   }
 
   /* Create a valid docUrl of the correct type (URL) from the informed string document url (used at the HTTP request) or, if not possible, the default docUrl from the text */
-  private def createDocUrl(docUrlString: String, text: Text): URL = {
+  def defineDocUrl(docUrlString: String, text: Text): URL = {
     if (!(docUrlString == "")) {
       try {
         return new URL(docUrlString)
@@ -126,11 +123,11 @@ object SpotlightFeedback {
     }
   }
   /* Create a valid docUrl of the correct type (URL) from the informed string document url (used at the HTTP request) or, if not possible, the default docUrl from the string text */
-  private def createDocUrl(docUrlString: String, text: String): URL = createDocUrl(docUrlString, new Text(text))
+  def defineDocUrl(docUrlString: String, text: String): URL = defineDocUrl(docUrlString, new Text(text))
 
   /* Validate the obligatory attributes of SpotlightFeedback */
-  private def validate(text: Text, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
-                       feedback: String, systems: List[String], isManual: Boolean): Boolean = {
+  def validate(text: Text, entityUri: DBpediaResource, surfaceForm: SurfaceForm, offset: Int,
+                       feedback: String, systems: List[String], manual: Boolean): Boolean = {
 
     if (text.text.equals(""))
       throw new InputException("text must be filled!")
@@ -141,28 +138,27 @@ object SpotlightFeedback {
     if (offset<=0)
       throw new InputException("offset must be filled with a entity position (a positive value)!")
     if(!allFeedbackPossibilities.contains(feedback))
-      throw new IllegalArgumentException("\"%s\" is not a valid feedback. List of valid ones: %s".format(feedback, allFeedbackPossibilities.toString()))
+      throw new InputException("\"%s\" is not a valid feedback. List of valid ones: %s".format(feedback, allFeedbackPossibilities.toString()))
     if (systems.length == 0)
       throw new InputException("systems must be filled!")
-    if(!isManual){
+    if(!manual){
       if(!systems.forall(automaticSystemsIds.contains(_)))
-        throw new IllegalArgumentException("One or more systems are not registered. List of valid ones: %s . If it is a new system, please contact us for registration.".format(automaticSystemsIds))
+        throw new InputException("One or more systems are not registered. List of valid ones: %s . If it is a new system, please contact us for registration.".format(automaticSystemsIds))
     }
 
     //No exception until now, so it is valid
     true
   }
 
-  def convertIsManual(isManualString: String): Boolean = {
+  def convertManual(manual: String): Boolean = {
     try{
-      return isManualString.toBoolean
+      return manual.toBoolean
     }catch {
-      case e: NumberFormatException => throw new NumberFormatException("%s is not a valid is_manual_feedback, which must be a boolean (true/false - case insensitive)".format(isManualString))
+      case e: NumberFormatException => throw new NumberFormatException("%s is not a valid is_manual_feedback, which must be a boolean (true/false - case insensitive)".format(manual))
     }
   }
   
-  def getAllFeedbackPossibilities(): List[String] = {
-    allFeedbackPossibilities
-  }
+  def getAllFeedbackPossibilities(): List[String] = allFeedbackPossibilities
 
+  def getDefaultDocURLRoot(): String = defaultDocURLRoot
 }
