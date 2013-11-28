@@ -22,9 +22,10 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
   "A FeedbackMultiStore with no FeedbackStore registered" should "not store any SpotlightFeedback" in {
     var success = false
     try{
+      //Try to store a unique feedback into a multiStore with no store registered
       (new FeedbackMultiStore()).storeFeedback(FeedbackMultiStoreTest.feedback)
     } catch {
-      case e: NullPointerException =>  success = true
+      case e: NullPointerException =>  success = true //Multi store has not accepted this try of storage
     }
 
     success should be === true
@@ -33,42 +34,48 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
   it  should "not store any batch of SpotlightFeedback" in {
     var success = false
     try{
+      //Try to store a batch of feedback into a multiStore with no store registered
       (new FeedbackMultiStore()).storeFeedbackBatch(List(FeedbackMultiStoreTest.feedback, FeedbackMultiStoreTest.feedback, FeedbackMultiStoreTest.feedback))
     } catch {
-      case e: NullPointerException =>  success = true
+      case e: NullPointerException => success = true  //Multi store has not accepted this try of storage
     }
 
     success should be === true
   }
   
-  "A FeedbackStore registration" should "be done when the long constructor is used" in {    
+  "A FeedbackStore registration" should "be done when the long constructor is used" in {
+    //Construct the multiStore using the constructor with the list of stores
     val multiStore = new FeedbackMultiStore(List(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage),
                                                 new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage),
                                                 new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage)))
-
+    //The above constructor should registered all informed stores (so its toString should be different of an empty multiStore toString
     multiStore.toString() should not be === (new FeedbackMultiStore()).toString()
   }
   
   it should "be done by the registration method" in {
+    //Create a empty multiStore
     val multiStore = new FeedbackMultiStore()
+    //Get its toString when it is empty
     val noRegisteredStoreToString:String = multiStore.toString()
-    
+
+    //Register some stores to the multiStore
     multiStore.registerStore(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage))
     multiStore.registerStore(new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage))
     multiStore.registerStore(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage))
 
+    //The above constructor should registered all informed stores (so its toString should be different of an empty multiStore toString
     multiStore.toString() should not be === (noRegisteredStoreToString)
   }
 
   "A FeedbackMultiStore with registered FeedbackStores" should "store some SpotlightFeedback in every store" in {
     val multiStore = new FeedbackMultiStore(List(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage),
                                                  new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage)))
-
+    //Ensure that storage files is empty
     FeedbackMultiStoreTest.cleanFile(FeedbackMultiStoreTest.tsvStorage)
     FeedbackMultiStoreTest.cleanFile(FeedbackMultiStoreTest.csvStorage)
 
+    //Store some feedback and keep its records to verification
     var expectedStoredSpotlightFeedback: List[SpotlightFeedback] = List()
-
     var success = false
     try{
       for(i <- 1 to 3){
@@ -81,15 +88,21 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
       case e: NullPointerException => success = false
     }
     success should be === true
+
+    //Define the expected content of the tsv storage
     var expectedStoredSpotlightFeedbackString: String = ""
     expectedStoredSpotlightFeedback.foreach{ feedback =>
       expectedStoredSpotlightFeedbackString = expectedStoredSpotlightFeedbackString + feedback.mkString("\t")
-    } 
+    }
+    //The content of the storage file should be the expected (as the file was empty before)
     FeedbackMultiStoreTest.getFileContent(FeedbackMultiStoreTest.tsvStorage).mkString("") should be === expectedStoredSpotlightFeedbackString
+
+    //Define the expected content of the csv storage
     expectedStoredSpotlightFeedbackString = ""
     expectedStoredSpotlightFeedback.foreach{ feedback =>
       expectedStoredSpotlightFeedbackString = expectedStoredSpotlightFeedbackString + feedback.mkString(",")
     }
+    //The content of the storage file should be the expected (as the file was empty before)
     FeedbackMultiStoreTest.getFileContent(FeedbackMultiStoreTest.csvStorage).mkString("") should be === expectedStoredSpotlightFeedbackString
   }
 
@@ -97,11 +110,12 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
     val multiStore = new FeedbackMultiStore(List(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage),
       new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage)))
 
+    //Ensure that storage files is empty
     FeedbackMultiStoreTest.cleanFile(FeedbackMultiStoreTest.tsvStorage)
     FeedbackMultiStoreTest.cleanFile(FeedbackMultiStoreTest.csvStorage)
 
+    //Store some feedback and keep its recods to verification
     var expectedStoredSpotlightFeedback: List[SpotlightFeedback] = List()
-
     var success = false
     try{
       for(i <- 1 to 3){
@@ -114,34 +128,46 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
       case e: NullPointerException => success = false
     }
     success should be === true
+
+    //Define the expected content of the tsv storage
     var expectedStoredSpotlightFeedbackString: String = ""
     expectedStoredSpotlightFeedback.foreach{ feedback =>
       expectedStoredSpotlightFeedbackString = expectedStoredSpotlightFeedbackString + feedback.mkString("\t")
     }
+    //The content of the storage file should be the expected (as the file was empty before)
     FeedbackMultiStoreTest.getFileContent(FeedbackMultiStoreTest.tsvStorage).mkString("") should be === expectedStoredSpotlightFeedbackString
+
+    //Define the expected content of the csv storage
     expectedStoredSpotlightFeedbackString = ""
     expectedStoredSpotlightFeedback.foreach{ feedback =>
       expectedStoredSpotlightFeedbackString = expectedStoredSpotlightFeedbackString + feedback.mkString(",")
     }
+    //The content of the storage file should be the expected (as the file was empty before)
     FeedbackMultiStoreTest.getFileContent(FeedbackMultiStoreTest.csvStorage).mkString("") should be === expectedStoredSpotlightFeedbackString
   }
 
   "The temporary storage file create for this test" should "be deleted" in {
+    //Remove the temporary storage files used by the test
     if(FeedbackMultiStoreTest.tsvStorage.exists()) FeedbackMultiStoreTest.tsvStorage.delete() should be === true
     if(FeedbackMultiStoreTest.csvStorage.exists()) FeedbackMultiStoreTest.csvStorage.delete() should be === true
+    //Remove the temporary storage directory used by the test
     if(FeedbackMultiStoreTest.testWarehouseDirectory.exists()) FeedbackMultiStoreTest.testWarehouseDirectory.delete() should be === true
   }
 }
 
 object FeedbackMultiStoreTest {
-  val testWarehouseDirectory = new File(FeedbackMultiStore.createStorageFolder("FeedbackMultiStoreTest-Warehouse"))
-
+  //The temp directory to be used by the tests
+  val testWarehouseDirectory = new File(FeedbackMultiStore.createStorageFolder("FeedbackMultiStoreTest_temp"))
+  //The temp feedback storage files to be used by the tests
   val tsvStorage = new File(testWarehouseDirectory.getCanonicalPath() + File.separator + "FeedbackMultiStoreTest.tmp.tsv")
   val csvStorage = new File(testWarehouseDirectory.getCanonicalPath() + File.separator + "FeedbackMultiStoreTest.tmp.csv")
 
+  //Clean up (empty) the informed file. Is the same as overwrite the informed file with nothing ("")
   def cleanFile(file: File) = (new FileWriter(file, false)).write("")
+  //Get the lines of the informed file without the empty lines
   def getFileContent(file: File) = Source.fromFile(file).getLines().filterNot(_.equals(""))
-  
+
+  //The SpotlightFeedback that will be used during the tests
   def feedback: SpotlightFeedback = new SpotlightFeedback(new Text("Berlin is capital of Germany"),
     new URL("http://www.berlin.de"), "news", new DBpediaResource("Berlin"), new SurfaceForm("Berlin"), 1,
     "correct", List[String]("spotlight_lucene", "spotlight_statistical"), false, "english")
