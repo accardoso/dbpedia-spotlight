@@ -48,6 +48,10 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
     val multiStore = new FeedbackMultiStore(List(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage),
                                                 new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage),
                                                 new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage)))
+
+    //Close multiStore registered stores that need to be finalized
+    multiStore.close()
+
     //The above constructor should registered all informed stores (so its toString should be different of an empty multiStore toString
     multiStore.toString() should not be === (new FeedbackMultiStore()).toString()
   }
@@ -62,6 +66,9 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
     multiStore.registerStore(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage))
     multiStore.registerStore(new CommaSVFeedbackStore(FeedbackMultiStoreTest.csvStorage))
     multiStore.registerStore(new TSVFeedbackStore(FeedbackMultiStoreTest.tsvStorage))
+
+    //Close multiStore registered stores that need to be finalized
+    multiStore.close()
 
     //The above constructor should registered all informed stores (so its toString should be different of an empty multiStore toString
     multiStore.toString() should not be === (noRegisteredStoreToString)
@@ -146,7 +153,7 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
     FeedbackMultiStoreTest.getFileContent(FeedbackMultiStoreTest.csvStorage).mkString("") should be === expectedStoredSpotlightFeedbackString
   }
 
-  "The temporary storage file create for this test" should "be deleted" in {
+  "The temporary storage files and folder create for this test" should "be deleted" in {
     //Remove the temporary storage files used by the test
     if(FeedbackMultiStoreTest.tsvStorage.exists()) FeedbackMultiStoreTest.tsvStorage.delete() should be === true
     if(FeedbackMultiStoreTest.csvStorage.exists()) FeedbackMultiStoreTest.csvStorage.delete() should be === true
@@ -157,7 +164,7 @@ class FeedbackMultiStoreTest extends FlatSpec with ShouldMatchers {
 
 object FeedbackMultiStoreTest {
   //The temp directory to be used by the tests
-  val testWarehouseDirectory = new File(FeedbackMultiStore.createStorageFolder("FeedbackMultiStoreTest_temp"))
+  val testWarehouseDirectory = new File(FeedbackMultiStore.createStorageFolder("FeedbackMultiStoreTest.temp"))
   //The temp feedback storage files to be used by the tests
   val tsvStorage = new File(testWarehouseDirectory.getCanonicalPath() + File.separator + "FeedbackMultiStoreTest.tmp.tsv")
   val csvStorage = new File(testWarehouseDirectory.getCanonicalPath() + File.separator + "FeedbackMultiStoreTest.tmp.csv")

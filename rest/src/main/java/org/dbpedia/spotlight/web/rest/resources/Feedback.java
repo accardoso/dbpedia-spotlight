@@ -41,8 +41,6 @@ import java.io.File;
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
  */
-//TODO bulk feedback: users can post a gzip with json or xml encoded feedback
-//TODO accept HTTP GET
 
 @ApplicationPath(Server.APPLICATION_PATH)
 @Path("/feedback")
