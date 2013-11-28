@@ -13,15 +13,13 @@ import org.dbpedia.spotlight.model.SpotlightFeedback
  * @constructor () -> Create a Multiple Store Manager without any registered Store
  */
 
-class FeedbackMultiStore(var stores: List[FeedbackStore]) {
+class FeedbackMultiStore(private var stores: List[FeedbackStore]) {
   def this() = this(List[FeedbackStore]())
 
   /* Add (Register) a new store (a FeedbackStore implementation - a storage file, stream, or database) to the multi store instance. */
-  def registerStore(store: FeedbackStore) = {
-    stores = stores :+ store
-  }
+  def registerStore(store: FeedbackStore) = stores = stores :+ store
 
-  def validateStoreRequest(): Boolean = {
+  private def validateStoreRequest(): Boolean = {
     if(stores.isEmpty)
       throw new NullPointerException("Multi Store Manager has no registered store. Please, register at least one before store a feedback.")
 
@@ -40,14 +38,10 @@ class FeedbackMultiStore(var stores: List[FeedbackStore]) {
     stores.foreach(_.addAll(feedbackList))
   }
 
-  /* Add each SpotlightFeedback loaded by the FeedbackLoader to all registered stores */
-  def storeAllFeedbackFrom(feedbackLoader: FeedbackLoader) = {
-    validateStoreRequest()
-    stores.foreach(_.convertFrom(feedbackLoader))
-  }
-
   /* Close the the files/databases tha request to be closed to allow future writings and readings */
   def close() = stores.foreach(_.finalizeStorage())
+
+  override def toString(): String = "FeedbackMultiStore[" + stores.mkString(" , ") + "]"
 
 }
 

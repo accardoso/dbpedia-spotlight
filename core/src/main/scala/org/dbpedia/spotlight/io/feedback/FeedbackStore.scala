@@ -17,9 +17,6 @@ trait FeedbackStore {
   /* Add (append) a batch of new feedback at the end of the storing file/database using the specific format */
   def addAll(src: List[SpotlightFeedback]) = src.foreach(add(_))
 
-  /* Convert all feedback loaded at the FeedbackLoader and add them at the end of the storing file/database using the specific format */
-  def convertFrom(src: FeedbackLoader) = addAll(src.load())
-
   /* Finalize (close) the storage file/database (only if the storage format need). */
   def finalizeStorage()
 }

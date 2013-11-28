@@ -10,7 +10,7 @@ import java.net.URL
 import scala.io.Source
 
 /**
- * This ScalaTest test the storage class TSVFeedbackStoreTest, which extends FeedbackStore.
+ * This ScalaTest test the storage class TSVFeedbackStore, which extends FeedbackStore.
  *
  * @author Alexandre Cançado Cardoso - accardoso
  */
@@ -70,39 +70,15 @@ class TSVFeedbackStoreTest extends FlatSpec with ShouldMatchers {
 
     TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFile).mkString("") should be === expectedStorageContent
   }
-
-  "All SpotlightFeedback loaded by a FeedbackLoader" should "be converted correctly into the tsv storage" in {
-    TSVFeedbackStoreTest.cleanFile(TSVFeedbackStoreTest.storageFileToBeLoaded)
-    (new TSVFeedbackStore(TSVFeedbackStoreTest.storageFileToBeLoaded)).addAll(List(TSVFeedbackStoreTest.feedback, TSVFeedbackStoreTest.feedback, TSVFeedbackStoreTest.feedback))
-    val expectedStorageContent = TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFileToBeLoaded).mkString("")
-
-    TSVFeedbackStoreTest.cleanFile(TSVFeedbackStoreTest.storageFile)
-    storage.convertFrom(new TSVFeedbackLoader(TSVFeedbackStoreTest.storageFileToBeLoaded))
-
-    TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFile).mkString("") should be === expectedStorageContent
-  }
-  
-  it should "be converted correctly into the tsv storage without removing any other already stored feedback" in {
-    var expectedStorageContent = TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFile).mkString("")
-
-    (new TSVFeedbackStore(TSVFeedbackStoreTest.storageFileToBeLoaded)).addAll(List(TSVFeedbackStoreTest.feedback, TSVFeedbackStoreTest.feedback, TSVFeedbackStoreTest.feedback))
-    expectedStorageContent = expectedStorageContent + TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFileToBeLoaded).mkString("")
-    
-    storage.convertFrom(new TSVFeedbackLoader(TSVFeedbackStoreTest.storageFileToBeLoaded))    
-
-    TSVFeedbackStoreTest.getFileContent(TSVFeedbackStoreTest.storageFile).mkString("") should be === expectedStorageContent
-  }
   
   "The temporary storage file create for this test" should "be deleted" in {
     TSVFeedbackStoreTest.storageFile.delete() should be === true
-    TSVFeedbackStoreTest.storageFileToBeLoaded.delete() should be === true
   }
 
 }
 
 object TSVFeedbackStoreTest {
   val storageFile: File = new File("feedbackStore.tsv")
-  val storageFileToBeLoaded = new File("feedbackStoreToBeLoaded.tmp.tsv")
   
   def cleanFile(file: File) = (new FileWriter(file, false)).write("")
   def getFileContent(file: File) = Source.fromFile(file).getLines().filterNot(_.equals(""))
