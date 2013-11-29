@@ -42,7 +42,7 @@ object FeedbackParserTest {
     new SpotlightFeedback("Goethe studied law in University of Leipzig from 1765 to 1768. He detested learning age-old judicial rules by heart, preferring instead to attend the poetry lessons of Christian Fürchtegott Gellert. In Leipzig, Goethe fell in love with Käthchen Schönkopf and wrote cheerful verses about her in the Rococo genre. The restaurant Auerbachs Keller and its legend of Faust's 1525 barrel ride impressed him so much that Auerbachs Keller became the only real place in his closet drama Faust Part One.", "http://rdface.aksw.org/new/tinymce/examples/rdface.html", "biography", "http://dbpedia.org/resource/Goethe's_Faust",	"Faust", 362, "incorrect", "user_1", "true", "english"),
     new SpotlightFeedback("Goethe studied law in University of Leipzig from 1765 to 1768. He detested learning age-old judicial rules by heart, preferring instead to attend the poetry lessons of Christian Fürchtegott Gellert. In Leipzig, Goethe fell in love with Käthchen Schönkopf and wrote cheerful verses about her in the Rococo genre. The restaurant Auerbachs Keller and its legend of Faust's 1525 barrel ride impressed him so much that Auerbachs Keller became the only real place in his closet drama Faust Part One.", "http://rdface.aksw.org/new/tinymce/examples/rdface.html", "biography", "http://dbpedia.org/resource/Leipzig_University",	"University of Leipzig", 22, "correct", "user_1", "true", "english")
   )
-  //TODO use the samples xml and json from a web repo
-  val batchXml: String = scala.io.Source.fromURL("file:///home/alexandre/Projects/test-files-spotlight/feedback-interface/batch.xml").mkString("")
-  val batchJson: String = scala.io.Source.fromURL("file:///home/alexandre/Projects/test-files-spotlight/feedback-interface/batch.json").mkString("")
+  val batchXml: String = scala.io.Source.fromURL("https://raw.github.com/accardoso/test-files-spotlight/master/feedback-samples/batch.xml").mkString("")
+  val batchJson: String = scala.io.Source.fromURL("https://raw.github.com/accardoso/test-files-spotlight/master/feedback-samples/batch.json").mkString("")
+
 }
