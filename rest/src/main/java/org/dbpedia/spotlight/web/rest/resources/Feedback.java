@@ -58,13 +58,13 @@ public class Feedback {
     public Response postXML(@DefaultValue("") @FormParam("key") String key,
                            @DefaultValue("") @FormParam("text") String text,
                            @DefaultValue("") @FormParam("url") String docUrlString,                          //Optional, auto-generated if not informed.
-                           @DefaultValue("") @FormParam("discourse_type") String discourseType,              //Optional
+                           @DefaultValue("") @FormParam("gender") String gender,                             //Optional
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
                            @DefaultValue("") @FormParam("surface_form") String surfaceForm,
                            @DefaultValue("-1") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
                            @DefaultValue("") @FormParam("systems") String systemIds,
-                           @DefaultValue("") @FormParam("is_manual") String isManual,
+                           @DefaultValue("") @FormParam("manual") String manual,
                            @DefaultValue("") @FormParam("language") String language,                         //Optional
                            @DefaultValue("") @FormParam("json_batch") String jsonBatch,                      //If informed then the interface shall disregard all other parameters (except key, that is used in authentication)
                            @DefaultValue("") @FormParam("xml_batch") String xmlBatch,                        //If informed and jsonBatch is not then the interface shall disregard all other parameters (except key, that is used in authentication)
@@ -102,7 +102,7 @@ public class Feedback {
                 }
             }else{
                 //Create a validated and standardized SpotlightFeedback from the post params and store it into all stores registered at multiStore
-                multiStore.storeFeedback(new SpotlightFeedback(text, docUrlString, discourseType, entityUri, surfaceForm, offset, feedback, systemIds, isManual, language));
+                multiStore.storeFeedback(new SpotlightFeedback(text, docUrlString, gender, entityUri, surfaceForm, offset, feedback, systemIds, manual, language));
             }
 
             //Close all stores that need to be closed

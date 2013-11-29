@@ -9,7 +9,7 @@ import org.dbpedia.spotlight.exceptions.InputException
  * @author Alexandre Cançado Cardoso - accardoso
  */
 
-class SpotlightFeedback(text: Text, private var docUrl: URL, private var discourseType: String, entity: DBpediaResource,
+class SpotlightFeedback(text: Text, private var docUrl: URL, private var gender: String, entity: DBpediaResource,
                         surfaceForm: SurfaceForm, offset: Int, private var feedback: String, private var systems: List[String],
                         manual: Boolean, private var language: String) {
   /* Constructor for obligatory attributes only */
@@ -17,9 +17,9 @@ class SpotlightFeedback(text: Text, private var docUrl: URL, private var discour
            systems: List[String], manual: Boolean) = this(text, SpotlightFeedback.createDefaultDocUrl(text), "", entity, 
            surfaceForm, offset, feedback, systems, manual, "")
   /* Constructor for all attributes as received by plain text HTTP interface*/
-  def this(text: String, docUrl: String, discourseType: String, entityUri: String, surfaceForm: String, offset: Int, 
+  def this(text: String, docUrl: String, gender: String, entityUri: String, surfaceForm: String, offset: Int, 
            feedback: String, systems: String, manual: String, language:String) = this(new Text(text), 
-    SpotlightFeedback.defineDocUrl(docUrl, text), discourseType, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm),
+    SpotlightFeedback.defineDocUrl(docUrl, text), gender, new DBpediaResource(entityUri), new SurfaceForm(surfaceForm),
     offset, feedback, systems.split(" ").toList, SpotlightFeedback.convertManual(manual), language)
   /* Constructor for obligatory attributes only as received by plain text HTTP interface*/
   def this(text: String, entityUri: String, surfaceForm: String, offset: Int, feedback: String, systems: String, 
@@ -36,7 +36,7 @@ class SpotlightFeedback(text: Text, private var docUrl: URL, private var discour
   if(docUrl.toString.equals(docUrl.getProtocol)) //the url is only the protocol, eg.: "http://", "file://", "https://"
     docUrl = SpotlightFeedback.createDefaultDocUrl(text)
   //Discourse type must be lower case or empty
-  discourseType = discourseType.toLowerCase
+  gender = gender.toLowerCase
   //Language must be lower case or empty
   language = language.toLowerCase
 
@@ -51,13 +51,13 @@ class SpotlightFeedback(text: Text, private var docUrl: URL, private var discour
   *  Allow to construct the SpotlightFeedback with the obligatory attributes and add only the useful optional ones.
   */
   def setDocUrl(docUrlString: String) = this.docUrl = SpotlightFeedback.defineDocUrl(docUrlString, text)
-  def setDiscourseType(discourseType: String) = this.discourseType = discourseType.toLowerCase
+  def setDiscourseType(discourseType: String) = this.gender = discourseType.toLowerCase
   def setLanguage(language: String) = this.language = language.toLowerCase
 
   /* Getters */
   def getText(): Text = text
   def getDocUrl(): URL = docUrl
-  def getDiscourseType(): String = discourseType
+  def getDiscourseType(): String = gender
   def getEntity(): DBpediaResource = entity
   def getEntityFullUri() = entity.getFullUri
   def getSurfaceForm(): SurfaceForm = surfaceForm
@@ -72,10 +72,10 @@ class SpotlightFeedback(text: Text, private var docUrl: URL, private var discour
     if(sep == " ")
       throw new IllegalArgumentException("SpotlightFeedback attributes can not be separated by \" \", because it is already used to separate the systems list elements")
     var list: List[String] = List(text.text.replace(sep, ""), docUrl.toString) //Need to remove sep from the text to do not generate confusion with where is a text element and where is a separator //TODO a real escape for the sep that are text elements (suggestion: encode to url text)
-    if(discourseType == "")
+    if(gender == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
     else
-      list = list :+ discourseType
+      list = list :+ gender
     list = list ++ List(entity.getFullUri, surfaceForm.getName, offset.toString, feedback, systems.mkString(" "), manual.toString)
     if(language == "")
       list = list :+ SpotlightFeedback.emptyFieldRepresentation
