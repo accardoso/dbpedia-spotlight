@@ -36,7 +36,6 @@ import java.io.File;
 
 /**
  * REST Web Service for feedback at http://<rest_url_setted_in_Server.java>/feedback //Default: http://localhost:2222/rest/feedback/
- * Send the feed back by a GET using file request is obligatory, e.g.: curl -X POST -d @/home/alexandre/Projects/feedbackIncorrect http://localhost:2222/rest/feedback/
  *
  * @author pablomendes
  * @author Alexandre Cançado Cardoso - accardoso
@@ -57,17 +56,17 @@ public class Feedback {
     @Produces({MediaType.TEXT_XML,MediaType.APPLICATION_XML})
     public Response postXML(@DefaultValue("") @FormParam("key") String key,
                            @DefaultValue("") @FormParam("text") String text,
-                           @DefaultValue("") @FormParam("url") String docUrlString,                          //Optional, auto-generated if not informed.
-                           @DefaultValue("") @FormParam("gender") String gender,                             //Optional
+                           @DefaultValue("") @FormParam("url") String docUrlString,        //Optional, auto-generated if not informed.
+                           @DefaultValue("") @FormParam("gender") String gender,           //Optional
                            @DefaultValue("") @FormParam("entity_uri") String entityUri,
                            @DefaultValue("") @FormParam("surface_form") String surfaceForm,
                            @DefaultValue("-1") @FormParam("offset") int offset,
                            @DefaultValue("") @FormParam("feedback") String feedback,
                            @DefaultValue("") @FormParam("systems") String systemIds,
                            @DefaultValue("") @FormParam("manual") String manual,
-                           @DefaultValue("") @FormParam("language") String language,                         //Optional
-                           @DefaultValue("") @FormParam("json_batch") String jsonBatch,                      //If informed then the interface shall disregard all other parameters (except key, that is used in authentication)
-                           @DefaultValue("") @FormParam("xml_batch") String xmlBatch,                        //If informed and jsonBatch is not then the interface shall disregard all other parameters (except key, that is used in authentication)
+                           @DefaultValue("") @FormParam("language") String language,       //Optional
+                           @DefaultValue("") @FormParam("json_batch") String jsonBatch,    //If informed then the interface shall disregard all other parameters (except key, that is used in authentication)
+                           @DefaultValue("") @FormParam("xml_batch") String xmlBatch,      //If informed and jsonBatch is not then the interface shall disregard all other parameters (except key, that is used in authentication)
                            @Context HttpServletRequest request) throws Exception {
 
         FeedbackMultiStore multiStore = null;

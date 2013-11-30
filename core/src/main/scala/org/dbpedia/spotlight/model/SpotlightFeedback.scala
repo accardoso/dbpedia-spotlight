@@ -2,6 +2,7 @@ package org.dbpedia.spotlight.model
 
 import java.net.URL
 import org.dbpedia.spotlight.exceptions.InputException
+import org.dbpedia.spotlight.log.SpotlightLog
 
 /**
  * An abstract data type for the Feedback.
@@ -97,7 +98,7 @@ object SpotlightFeedback {
 
   private val allFeedbackPossibilities: List[String] = List("correct", "incorrect")
 
-  private val automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
+  private var automaticSystemsIds: List[String] = List("spotlight_lucene", "spotlight_statistical", "alchemy_api", "zemanta", "open_calais")
 
   private val defaultDocURLRoot: String = "http://spotlight.dbpedia.org/id/" //If no doc_url is informed, Spotlight produce a default one with the root below and the text hash
 
@@ -161,4 +162,81 @@ object SpotlightFeedback {
   def getAllFeedbackPossibilities(): List[String] = allFeedbackPossibilities
 
   def getDefaultDocURLRoot(): String = defaultDocURLRoot
+
+  private def addAutomaticSystemId(system: String): Boolean = {
+    //Define the chars that can be used in a system id
+    val validChars: List[Char] = List('_','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9')
+
+    //Validate the new system
+    if( system.isEmpty || system.contains("user") || !system.equals(system.toLowerCase()) || !system.forall(validChars.contains(_)) )
+      throw new IllegalArgumentException("The informed system id is not a valid identifier")
+
+    //Add the new system identifier if it is really new
+    if(!automaticSystemsIds.contains(system))
+      automaticSystemsIds = automaticSystemsIds :+ system
+
+    SpotlightLog.info(this.getClass, "The system id %s was added to the automaticSystemsIds list.", system)
+    true
+  }
+
+  private def removeAutomaticSystemId(system: String): Boolean = {
+    //Remove the informed system
+    automaticSystemsIds = automaticSystemsIds.filterNot(_.equals(system))
+
+    SpotlightLog.info(this.getClass, "The system id %s was removed from the automaticSystemsIds list.", system)
+    true
+  }
+
+  private def addAutomaticSystemIdInterface(system: String){
+    println("**** DBpedia-Spotlight new Automatic System Identifier registration interface ****")
+    print("Do you want to register the system: %s? [y|n]".format(system))
+    val line = Console.readLine
+    if (line == "y"){
+      if(addAutomaticSystemId(system))
+        println("Successfully add the system id: %s".format(automaticSystemsIds(automaticSystemsIds.length-1)))
+      else
+        println("ERROR: Could not add the system id: %s".format(system))
+    }else
+      println("Registration of the automatic system identifier canceled!")
+  }
+
+  private def removeAutomaticSystemIdInterface(system: String){
+    println("**** DBpedia-Spotlight Automatic System Identifier removal interface ****")
+    print("Do you want to remove the system id: %s ? [y|n]".format(system))
+    val line = Console.readLine
+    if (line == "y") {
+      if(removeAutomaticSystemId(system))
+        println("Successfully remove the system id: %s".format(system))
+      else
+        println("ERROR: Could not remove the system id: %s".format(system))
+    }else
+      println("Removal of the automatic system identifier canceled!")
+  }
+
+  private def automaticSystemsIdsManagementInterface(){
+    println("**** DBpedia-Spotlight Automatic System Identifier management interface ****")
+    println("Options:\n" +
+            "\t1 - Register a new automatic system identifier\n" +
+            "\t2 - Remove an automatic system identifier\n" +
+            "\t3 - List current registered automatic system identifier\n" +
+            "\t0 - Exit")
+    print("What do you want do? ")
+    val line = Console.readLine
+    line match {
+      case "1" => addAutomaticSystemIdInterface(informSystem("add"))
+      case "2" => removeAutomaticSystemIdInterface(informSystem("remove"))
+      case "3" => println("Registered automatic systems ids:\n%s".format(automaticSystemsIds.mkString("\n")))
+      case "0" | _ => return
+    }
+
+    def informSystem(message: String): String = {
+      print("Inform the system identifier to %s: ".format(message))
+      Console.readLine
+    }
+  }
+
+  def main(args: Array[String]){
+    automaticSystemsIdsManagementInterface()
+  }
+
 }
