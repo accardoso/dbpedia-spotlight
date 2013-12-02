@@ -6,6 +6,9 @@ import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
 import java.net.URL
 import org.dbpedia.spotlight.exceptions.InputException
+import org.dbpedia.spotlight.log.SpotlightLog
+import java.io.{File, FileOutputStream, ByteArrayInputStream}
+import scala.io.Source
 
 /**
  * This ScalaTest test the SpotlightFeedback abstract type validation, standardization and use.
@@ -196,5 +199,87 @@ class SpotlightFeedbackTest extends FlatSpec with ShouldMatchers {
       List[String]("spotlight_lucene", "spotlight_statistical"), false, "english")).mkString("\t").split("\t")
 
     SpotlightFeedback.nunOfFields should be === allAttributes.length
+  }
+
+
+  /* Tests for the automatic systems ids list management */
+  SpotlightFeedbackTest.originalAutomaticSystemsIds = SpotlightFeedback.getAutomaticSystemsIds()
+
+  "The automatic systems ids manager" should "add a new system id" in {
+    val systemsBefore = SpotlightFeedback.getAutomaticSystemsIds()
+    //Run the add interface to register newSystem 
+    SpotlightFeedbackTest.runSpotlightFeedbackMain(SpotlightFeedbackTest.addOptionCode + SpotlightFeedbackTest.enter +
+                             SpotlightFeedbackTest.newSystem + SpotlightFeedbackTest.enter + "y")
+    //The automatic systems ids after registration should be equal to: systemsBefore + {newSystem}
+    SpotlightFeedback.getAutomaticSystemsIds() should be === (systemsBefore :+ SpotlightFeedbackTest.newSystem)
+  }
+  
+  it should "not add an invalid system id" in {
+    val systemsBefore = SpotlightFeedback.getAutomaticSystemsIds()
+    //Run the add interface to register newSystem
+    var exception: Boolean = false
+    try{
+      SpotlightFeedbackTest.runSpotlightFeedbackMain(SpotlightFeedbackTest.addOptionCode + SpotlightFeedbackTest.enter + "Unit-Test SystemId.tmp" +
+                                                     SpotlightFeedbackTest.enter + "y")
+      //exception is already false
+    }catch{
+      case e: IllegalArgumentException => exception = true
+    }
+    //The invalid systems id should be refused, ...
+    exception should be === true
+    //... so the automatic systems should not be modified
+    SpotlightFeedback.getAutomaticSystemsIds() should be === systemsBefore
+  }
+
+  it should "remove the requested system id" in {
+    val systemsBefore = SpotlightFeedback.getAutomaticSystemsIds()
+    //Run the removal interface to register newSystem 
+    SpotlightFeedbackTest.runSpotlightFeedbackMain(SpotlightFeedbackTest.removeOptionCode + SpotlightFeedbackTest.enter +
+                             SpotlightFeedbackTest.newSystem + SpotlightFeedbackTest.enter + "y")
+    //The automatic systems ids after removal should be equal to: systemsBefore - {newSystem}
+    SpotlightFeedback.getAutomaticSystemsIds() should be === systemsBefore.filterNot(_.equals(SpotlightFeedbackTest.newSystem))
+  }
+
+  it should "list the systems ids" in {
+    //Define an output stream that will print to the testOutputStream file
+    val testOutputStream: File = new File("AuthenticationTest.out.tmp")
+    val outputStream = new FileOutputStream(testOutputStream)
+    //In this block the stdout is replaced by outputStream
+    Console.withOut(outputStream){
+      SpotlightFeedbackTest.runSpotlightFeedbackMain(SpotlightFeedbackTest.listOptionCode)
+    }
+    val output: String = Source.fromFile(testOutputStream).getLines().mkString("\n")
+    testOutputStream.delete should be === true
+    output.endsWith(SpotlightFeedback.getAutomaticSystemsIds().mkString("\n")) should be === true
+  }
+
+  "At the end of this test the automatic systems ids list" should "be at the original state" in {
+    //Print what was the original, because in case of error the developer can manually fix it
+    SpotlightLog.info(this.getClass, "The original automatic systems ids lit was: %s", SpotlightFeedbackTest.originalAutomaticSystemsIds.toString())
+    //Verify if the current automatic systems ids list is the same then the original, as it should.
+    SpotlightFeedbackTest.originalAutomaticSystemsIds should be === SpotlightFeedback.getAutomaticSystemsIds()
+  }
+
+}
+
+object SpotlightFeedbackTest {
+  var originalAutomaticSystemsIds: List[String] = null
+  val newSystem = "spotlight_feedback_test_system_id1_tmp"
+  val enter: Char = 13
+
+  /* The management interface operations codes */
+  val addOptionCode = "1"
+  val removeOptionCode = "2"
+  val listOptionCode = "3"
+
+  /* Run Authentication.main with the informed argument array and using a not standard input an output */
+  private def runSpotlightFeedbackMain(userInput: String) {
+    //Define an input stream with the userInput
+    val inputStream = new ByteArrayInputStream(userInput.getBytes())   
+    //In this block the stdin is replaced by inputStream
+    Console.withIn(inputStream){
+      //Run the Authentication main with the informed array of arguments and using the above defined stream in the place of the standard ones
+      SpotlightFeedback.main(Array[String]())
+    }
   }
 }

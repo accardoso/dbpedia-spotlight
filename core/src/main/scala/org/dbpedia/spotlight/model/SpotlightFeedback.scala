@@ -163,6 +163,11 @@ object SpotlightFeedback {
 
   def getDefaultDocURLRoot(): String = defaultDocURLRoot
 
+  /* Automatic Systems Ids management methods */
+
+  def getAutomaticSystemsIds(): List[String] = automaticSystemsIds
+
+  /* Add a new system id to the automatic systems ids list */
   private def addAutomaticSystemId(system: String): Boolean = {
     //Define the chars that can be used in a system id
     val validChars: List[Char] = List('_','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9')
@@ -179,6 +184,7 @@ object SpotlightFeedback {
     true
   }
 
+  /* Remove the informed system id to the automatic systems ids list */
   private def removeAutomaticSystemId(system: String): Boolean = {
     //Remove the informed system
     automaticSystemsIds = automaticSystemsIds.filterNot(_.equals(system))
@@ -187,6 +193,7 @@ object SpotlightFeedback {
     true
   }
 
+  /* Management console interface to add a new system id to the automatic systems ids list */
   private def addAutomaticSystemIdInterface(system: String){
     println("**** DBpedia-Spotlight new Automatic System Identifier registration interface ****")
     print("Do you want to register the system: %s? [y|n]".format(system))
@@ -200,6 +207,7 @@ object SpotlightFeedback {
       println("Registration of the automatic system identifier canceled!")
   }
 
+  /* Management console interface to remove the informed system id to the automatic systems ids list */
   private def removeAutomaticSystemIdInterface(system: String){
     println("**** DBpedia-Spotlight Automatic System Identifier removal interface ****")
     print("Do you want to remove the system id: %s ? [y|n]".format(system))
@@ -213,6 +221,7 @@ object SpotlightFeedback {
       println("Removal of the automatic system identifier canceled!")
   }
 
+  /* DBpedia-Spotlight developers/administrator console interface to manager the automatic systems ids list (add/remove/view) */
   private def automaticSystemsIdsManagementInterface(){
     println("**** DBpedia-Spotlight Automatic System Identifier management interface ****")
     println("Options:\n" +
@@ -229,12 +238,14 @@ object SpotlightFeedback {
       case "0" | _ => return
     }
 
+    /* Ask and read from the console the system id to be added/removed */
     def informSystem(message: String): String = {
       print("Inform the system identifier to %s: ".format(message))
       Console.readLine
     }
   }
 
+  /* Spotlight main run the automatic systems ids management interface, allowing developers/administrator to add/remove/list systems ids */
   def main(args: Array[String]){
     automaticSystemsIdsManagementInterface()
   }
