@@ -19,7 +19,7 @@ import util.Random
 object Authentication {
 
   /* The spotlight configuration file where the path of the api keys file is defined */
-  private val configFileName: String = "./conf/server.properties"
+  private val configFileName: String = "../conf/server.properties"
 
   /* The path for the file containing the registered api keys */
   private val apiKeysFilePath: String = defineApiKeysFilePath(configFileName)
@@ -29,7 +29,7 @@ object Authentication {
   /* Define the api keys file path from the config file using the AuthenticationConfig facilities */
   private def defineApiKeysFilePath(configFilePath: String): String = {
     AuthenticationConfig.setConfigFile(configFilePath)
-    AuthenticationConfig.get("org.dbpedia.spotlight.authentication.apikeys", "rest/src/main/scala/org/dbpedia/spotlight/web/rest/resources/.api-keys")
+    AuthenticationConfig.get("org.dbpedia.spotlight.authentication.apikeys", "src/main/scala/org/dbpedia/spotlight/web/rest/resources/.api-keys")
   }
 
   /* Public method to authenticate if it is or not a valid key */

@@ -13,7 +13,7 @@ import org.dbpedia.spotlight.exceptions.ConfigurationException
 object AuthenticationConfig {
 
   /* The default spotlight configuration file path */
-  val defaultConfigFilePath: String = "conf/server.properties"
+  val defaultConfigFilePath: String = "../conf/server.properties"
 
   /* The spotlight configuration file where the authentication parameter are defined */
   private var configFile: File = new File(defaultConfigFilePath)
@@ -42,7 +42,7 @@ object AuthenticationConfig {
   /* If not valid throw an exception */
   private def validate(file: File) {
     if(!file.exists() || !file.isFile)
-      throw new NoSuchElementException("Could not find the configuration file: %s".format(configFile.getCanonicalPath))
+      throw new NoSuchElementException("Could not find the configuration file: %s".format(file.getCanonicalPath))
   }
 
   /* Get the value of a key in the config file, or use de default value */
