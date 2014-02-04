@@ -16,10 +16,9 @@ class TextTest extends FlatSpec with ShouldMatchers {
 
   val input: String = "Germany’s capital is Berlin.\nThe cities below are not the Brazil’s capital:\n Rio de Janeiro \t São Paulo \t Buenos Aires."
   val expected: String = "Germany's capital is Berlin.\nThe cities below are not the Brazil's capital:\n Rio de Janeiro \t São Paulo \t Buenos Aires."
-
   val textInstance: Text = new Text(input)
 
-  "The ADT Text" should "be constructed cleaning it up correctly" in {
+  "The Text constructor" should "clean up the text attribute correctly" in {
     textInstance.text.equals(expected) should be === true
   }
 
@@ -27,7 +26,7 @@ class TextTest extends FlatSpec with ShouldMatchers {
     textInstance.toString.equals("Text["+expected+"]") should be === true
   }
 
-  "Two Text instance" should "be equal if and only if both text attribute are equal" in {
+  "Two Text instances" should "be equal if and only if both text attribute are equal" in {
     textInstance.equals(new Text(textInstance.text)) should be === true
   }
 
@@ -35,8 +34,12 @@ class TextTest extends FlatSpec with ShouldMatchers {
     textInstance.hashCode() should be === textInstance.text.hashCode
   }
 
-  it should "be 0 (zero) if the text attribute is null" in {
-    textInstance.text = null
-    textInstance.hashCode() should be === 0
+  it should "be 0 (zero) if the text attribute is null (note: null is different of empty: \"\")" in {
+    val temp: Text = new Text("")
+    temp.hashCode() should be === "".hashCode
+
+    temp.text = null
+    temp.hashCode() should be === 0
   }
 }
+
