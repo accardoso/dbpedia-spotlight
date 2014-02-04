@@ -36,9 +36,9 @@ class SurfaceFormTest extends FlatSpec with ShouldMatchers {
   }
 
   it should "initialize with the informed attributes" in {
-    sfDefault.id should be === manualID
-    sfDefault.annotatedCount should be === manualAnnotatedCount
-    sfDefault.totalCount should be === manualTotalCount
+    sfManual.id should be === manualID
+    sfManual.annotatedCount should be === manualAnnotatedCount
+    sfManual.totalCount should be === manualTotalCount
   }
 
   /*todo Uncomment this (already done) unit test after implement this feature to the SurfaceForm class
@@ -90,9 +90,4 @@ class SurfaceFormTest extends FlatSpec with ShouldMatchers {
     sfManual.annotationProbability should be === manualAnnotatedCount / manualTotalCount.toDouble
   }
 
-  /*todo This unit test after implement this feature to the SurfaceForm class
-  it should "treat division by zero (when totalCount attribute is zero)" in {
-    //Not implemented at the SurfaceForm class yet
-  }*/
-  
 }
