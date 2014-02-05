@@ -61,7 +61,10 @@ class Paragraph(val id : String,
 
     override def toString = {
         val textLen = text.text.length
-        if (!id.isEmpty) id+": " else "" + "Text[" + text.text.substring(0, scala.math.min(textLen, 50)) + " ...]" + occurrences.mkString("\n")
+        var str = ""
+        if (!id.isEmpty)
+          str = id+": "
+        str+"Text[" + text.text.substring(0, scala.math.min(textLen, 50)) + " ...]" + occurrences.mkString("\n")
     }
 
     def getOccurrences() : java.util.List[SurfaceFormOccurrence] = {
