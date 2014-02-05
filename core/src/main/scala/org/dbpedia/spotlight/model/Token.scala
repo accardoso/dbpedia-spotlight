@@ -10,7 +10,7 @@ class Token(val token: String, val offset: Int, var tokenType: TokenType) extend
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case token: Token => token.equals(token.token)
+      case token: Token => this.token.equals(token.token)
       case _ => false
     }
   }
