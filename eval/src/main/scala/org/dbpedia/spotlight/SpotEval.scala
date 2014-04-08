@@ -9,7 +9,7 @@ import scala.io.Source
 import sys.process._
 import scala.collection.JavaConverters._
 
-object AnnotatedTextSourceEval{
+object SpotEval{
 
   val spotlightServer: String = "http://spotlight.dbpedia.org/rest/"
 
