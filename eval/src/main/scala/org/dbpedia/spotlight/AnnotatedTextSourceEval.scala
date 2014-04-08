@@ -1,8 +1,10 @@
-import java.io.File
+import java.io.{FileNotFoundException, File}
+import org.dbpedia.spotlight.corpus.MilneWittenCorpus
 import org.dbpedia.spotlight.io.AnnotatedTextSource
 import org.dbpedia.spotlight.log.SpotlightLog
-import org.dbpedia.spotlight.model.{SurfaceForm, DBpediaResourceOccurrence, SurfaceFormOccurrence, Text}
+import org.dbpedia.spotlight.model._
 import org.dbpedia.spotlight.spot.SpotXmlParser
+import org.xml.sax.SAXParseException
 import scala.io.Source
 import sys.process._
 import scala.collection.JavaConverters._
@@ -26,40 +28,52 @@ object AnnotatedTextSourceEval{
     val tmpFile: File = new File("AnnotatedTextSourceEval.tmp")
 
     src.foreach{ paragraph =>
-      ("curl " + spotInterface +  paragraph.text.toString + " > " + tmpFile.getAbsolutePath).!
+      ("curl \"" + spotInterface + paragraph.text.text + "\" > " + tmpFile.getAbsolutePath).!
 
-      val ans:List[SpotOccurrence] =
-        convertFrom(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
 
-      val expected:List[SpotOccurrence] = convertFrom(paragraph.occurrences).sorted
-      var tp: Int = 0
+      var ans:List[SpotOccurrence] = List()
+      try{
+        ans = convertFrom(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
 
-      var i: Int = 0
-      var a: SpotOccurrence = ans(i)
-      expected.foreach{ e=>
-        while(e.getOffset() < a.getOffset()){
-          a = ans(i)
-          i += 1
+        val expected:List[SpotOccurrence] = convertFrom(paragraph.occurrences).sorted
+        var tp: Int = 0
+
+        var i: Int = 0
+        var a: SpotOccurrence = ans(i)
+        expected.foreach{ e=>
+          while(e.getOffset() < a.getOffset()){
+            a = ans(i)
+            i += 1
+          }
+          if(e.getOffset() == a.getOffset())
+            tp += 1
         }
-        if(e.getOffset() == a.getOffset())
-          tp += 1
+
+        val precision = if(ans.length != 0) tp / ans.length else -1
+        val recall = if(expected.length != 0) tp / expected.length else -1
+        var f1 = precision+recall
+        f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (precision+recall) else -1
+
+        SpotlightLog.info(this.getClass, "Paragraph %d Measures:\nPrecision = %f\nRecall = %f\nF1-score = %f",
+          precision, recall, f1)
+
+        totRetrieved += ans.length
+        totRelevant += expected.length
+        totTP += tp
+
+        countParagraphs += 1
+        avgPrecision += precision
+        avgRecall += recall
+
+      }catch{
+        case e: FileNotFoundException => {
+          SpotlightLog.warn(this.getClass, "Invalid answer to the cURL request: %s" , spotInterface+paragraph.text.text)
+        }
+        case e: SAXParseException => {
+          SpotlightLog.warn(this.getClass, "Could not parse the Spoter result: %s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
+        }
       }
 
-      val precision = if(ans.length != 0) tp / ans.length else -1
-      val recall = if(expected.length != 0) tp / expected.length else -1
-      var f1 = precision+recall
-      f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (precision+recall) else -1
-
-      SpotlightLog.info(this.getClass, "Paragraph %d Measures:\nPrecision = %f\nRecall = %f\nF1-score = %f",
-        precision, recall, f1)
-
-      totRetrieved += ans.length
-      totRelevant += expected.length
-      totTP += tp
-
-      countParagraphs += 1
-      avgPrecision += precision
-      avgRecall += recall
     }
 
     if(countParagraphs == 0)
@@ -85,7 +99,7 @@ object AnnotatedTextSourceEval{
 
     if(tmpFile.exists())
       if(!tmpFile.delete())
-        SpotlightLog.warn(this.getClass, "Could not delete the temprary file: %s", tmpFile.getAbsolutePath)
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
   }
 
   def convertFrom(list: List[Any]): List[SpotOccurrence] = {
@@ -110,8 +124,7 @@ object AnnotatedTextSourceEval{
 
 
   def main(args: Array[String]){
-
-
+    evaluate(MilneWittenCorpus.fromDirectory(new File("/home/alexandre/Desktop/mock-MilneWitten")))
   }
 
 }
@@ -120,7 +133,7 @@ class SpotOccurrence(offset : Int, surfaceForm : SurfaceForm) extends Comparable
   def this(element: DBpediaResourceOccurrence) = this(element.textOffset, element.surfaceForm)
   def this(element: SurfaceFormOccurrence) = this(element.textOffset, element.surfaceForm)
 
-  def compareTo(o: SpotOccurrence): Int = this.offset.compareTo(o.offset)
+  def compareTo(o: SpotOccurrence): Int = this.getOffset().compareTo(o.getOffset())
 
   def getOffset(): Int = offset
   def getSurfaceForm(): SurfaceForm = surfaceForm
