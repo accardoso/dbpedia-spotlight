@@ -1,4 +1,5 @@
 import java.io.{FileNotFoundException, File}
+import java.net.URLEncoder
 import org.dbpedia.spotlight.corpus.MilneWittenCorpus
 import org.dbpedia.spotlight.io.AnnotatedTextSource
 import org.dbpedia.spotlight.log.SpotlightLog
@@ -13,7 +14,7 @@ object SpotEval{
 
   val spotlightServer: String = "http://spotlight.dbpedia.org/rest/"
 
-  val spotInterface: String = spotlightServer + (if(spotlightServer.endsWith("/")) "spot?text=" else "/spot?text=")
+  val spotInterface: String = (spotlightServer + (if(spotlightServer.endsWith("/")) "spot?text=" else "/spot?text=")).trim
 
   def evaluate(src: AnnotatedTextSource) = {
     var totRetrieved = 0
@@ -28,14 +29,15 @@ object SpotEval{
     val tmpFile: File = new File("AnnotatedTextSourceEval.tmp")
 
     src.foreach{ paragraph =>
-      ("curl \"" + spotInterface + paragraph.text.text + "\" > " + tmpFile.getAbsolutePath).!
-
+      val curlcmd: String = "curl -o "+tmpFile.getCanonicalPath+" "+spotInterface+URLEncoder.encode(paragraph.text.text, "UTF-8")
+      //println("\n\n\n"+curlcmd+"\n\n\n")
+      curlcmd.!
 
       var ans:List[SpotOccurrence] = List()
       try{
-        ans = convertFrom(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
+        ans = convertFromSurfaceFormOccurrence(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
 
-        val expected:List[SpotOccurrence] = convertFrom(paragraph.occurrences).sorted
+        val expected:List[SpotOccurrence] = convertFromDBpediaResourceOccurrence(paragraph.occurrences).sorted
         var tp: Int = 0
 
         var i: Int = 0
@@ -54,8 +56,8 @@ object SpotEval{
         var f1 = precision+recall
         f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (precision+recall) else -1
 
-        SpotlightLog.info(this.getClass, "Paragraph %d Measures:\nPrecision = %f\nRecall = %f\nF1-score = %f",
-          precision, recall, f1)
+        SpotlightLog.info(this.getClass, "Paragraph "+countParagraphs+" Measures:\nPrecision = "+precision+
+                                          "\nRecall = "+recall+"\nF1-score = "+f1)
 
         totRetrieved += ans.length
         totRelevant += expected.length
@@ -70,7 +72,7 @@ object SpotEval{
           SpotlightLog.warn(this.getClass, "Invalid answer to the cURL request: %s" , spotInterface+paragraph.text.text)
         }
         case e: SAXParseException => {
-          SpotlightLog.warn(this.getClass, "Could not parse the Spoter result: %s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
+          SpotlightLog.warn(this.getClass, "Could not parse the Spoter result:\n%s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
         }
       }
 
@@ -85,43 +87,58 @@ object SpotEval{
       f1OfTotMeasures = if(f1OfTotMeasures > 0 && totPrecision >= 0 && totRecall >= 0)
         2*totPrecision*totRecall / (totPrecision+totRecall) else -1
 
-      SpotlightLog.info(this.getClass, "Whole Corpus Measures:\nPrecision = %f\nRecall = %f\nF1-score = %f",
-        totPrecision, totRecall, f1OfTotMeasures)
+      SpotlightLog.info(this.getClass, "Whole Corpus Measures:\nPrecision = "+totPrecision+"\nRecall = "+totRecall+
+                                        "\nF1-score = "+f1OfTotMeasures)
 
       avgPrecision /= countParagraphs
       avgRecall /= countParagraphs
       var f1OfAvgMeasures = avgPrecision+avgRecall
       f1OfAvgMeasures = if(f1OfAvgMeasures > 0) 2*avgPrecision*avgRecall / (avgPrecision+avgRecall) else -1
 
-      SpotlightLog.info(this.getClass, "Average of Paragraphs Measures:\nPrecision = %f\nRecall = %f\nF1-score = %f",
-        avgPrecision, avgRecall, f1OfAvgMeasures)
+      SpotlightLog.info(this.getClass, "Average of Paragraphs Measures:\nPrecision = "+avgPrecision+"\nRecall = "+avgRecall+
+                                       "\nF1-score = "+f1OfAvgMeasures)
     }
 
-    if(tmpFile.exists())
-      if(!tmpFile.delete())
-        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
+//    if(tmpFile.exists())
+//      if(!tmpFile.delete())
+//        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
   }
 
-  def convertFrom(list: List[Any]): List[SpotOccurrence] = {
+//  def convertFrom(list: List[Any]): List[SpotOccurrence] = {
+//    var out: List[SpotOccurrence] = List()
+//
+//    if(list.getClass.equals(List[DBpediaResourceOccurrence]().getClass)){
+//        list.foreach { e =>
+//          out = out :+ new SpotOccurrence(e.asInstanceOf[DBpediaResourceOccurrence])
+//        }
+//    }else if(list.getClass.equals(List[SurfaceFormOccurrence]().getClass)){
+//        list.foreach { e =>
+//          out = out :+ new SpotOccurrence(e.asInstanceOf[SurfaceFormOccurrence])
+//        }
+//    }else{
+//      throw new IllegalArgumentException("Invalid type of the elements of argument: list. It must be a list of DBpediaResourceOccurrence OR SurfaceFormOccurrence.")
+//    }
+//
+//    out
+//  }
+  def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence]): List[SpotOccurrence] = {
     var out: List[SpotOccurrence] = List()
 
-    list match {
-      case l: List[DBpediaResourceOccurrence] => {
-        l.foreach { e =>
-          out = out :+ new SpotOccurrence(e)
-        }
-      }
-      case l: List[SurfaceFormOccurrence] => {
-        l.foreach { e =>
-          out = out :+ new SpotOccurrence(e)
-        }
-      }
-      case _ => throw new IllegalArgumentException("Invalid type of the elements of argument: list. It must be a list of DBpediaResourceOccurrence OR SurfaceFormOccurrence.")
+    list.foreach { e =>
+      out = out :+ new SpotOccurrence(e)
     }
 
     out
   }
+  def convertFromSurfaceFormOccurrence(list: List[SurfaceFormOccurrence]): List[SpotOccurrence] = {
+    var out: List[SpotOccurrence] = List()
 
+    list.foreach { e =>
+      out = out :+ new SpotOccurrence(e)
+    }
+
+    out
+  }
 
   def main(args: Array[String]){
     evaluate(MilneWittenCorpus.fromDirectory(new File("/home/alexandre/Desktop/mock-MilneWitten")))
