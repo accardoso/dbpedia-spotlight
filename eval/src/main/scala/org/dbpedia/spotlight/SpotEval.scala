@@ -70,7 +70,7 @@ object SpotEval{
             a = ans(i)
           }
           if(e.getOffset() == a.getOffset())
-            if(!justOffset && e.getSurfaceForm().equals(a.getSurfaceForm())){
+            if(justOffset || e.getSurfaceForm().equals(a.getSurfaceForm())){
               tp += 1
               /*println(a) //debug*/
             }
