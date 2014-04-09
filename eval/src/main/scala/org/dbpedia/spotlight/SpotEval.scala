@@ -1,4 +1,4 @@
-import java.io.{FileNotFoundException, File}
+import java.io.{PrintStream, FileNotFoundException, File}
 import java.net.URLEncoder
 import org.dbpedia.spotlight.corpus.MilneWittenCorpus
 import org.dbpedia.spotlight.io.AnnotatedTextSource
@@ -12,25 +12,28 @@ import scala.collection.JavaConverters._
 
 object SpotEval{
 
+  val justOffset: Boolean = false
+
   val spotlightServer: String = "http://spotlight.dbpedia.org/rest/"
 
   val spotInterface: String = (spotlightServer + (if(spotlightServer.endsWith("/")) "spot?text=" else "/spot?text=")).trim
 
   def evaluate(src: AnnotatedTextSource) = {
+    SpotlightLog
+
     var totRetrieved = 0
     var totRelevant = 0
-    var totTP = 0
+    var totTP: Float = 0
 
     var countParagraphs = 0
-    var avgPrecision = 0
-    var avgRecall = 0
+    var avgPrecision: Float = 0
+    var avgRecall: Float = 0
 
     val parser: SpotXmlParser = new SpotXmlParser()
     val tmpFile: File = new File("AnnotatedTextSourceEval.tmp")
 
     src.foreach{ paragraph =>
       val curlcmd: String = "curl -o "+tmpFile.getCanonicalPath+" "+spotInterface+URLEncoder.encode(paragraph.text.text, "UTF-8")
-      //println("\n\n\n"+curlcmd+"\n\n\n")
       curlcmd.!
 
       var ans:List[SpotOccurrence] = List()
@@ -38,26 +41,45 @@ object SpotEval{
         ans = convertFromSurfaceFormOccurrence(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
 
         val expected:List[SpotOccurrence] = convertFromDBpediaResourceOccurrence(paragraph.occurrences).sorted
-        var tp: Int = 0
+
+        /* //debug
+        var debug = new File("ans.debug")
+        var stream = new PrintStream(debug)
+        ans.foreach(stream.println(_))
+        stream.close()
+        if(debug.exists())
+          if(!debug.delete())
+            SpotlightLog.warn(this.getClass, "Could not delete the debug file: %s", debug.getAbsolutePath)
+
+        debug = new File("expected.debug")
+        stream = new PrintStream(debug)
+        expected.foreach(stream.println(_))
+        stream.close()
+        if(debug.exists())
+          if(!debug.delete())
+            SpotlightLog.warn(this.getClass, "Could not delete the debug file: %s", debug.getAbsolutePath)
+        */
+
+        var tp: Float = 0
 
         var i: Int = 0
         var a: SpotOccurrence = ans(i)
         expected.foreach{ e=>
-          while(e.getOffset() < a.getOffset()){
-            a = ans(i)
+          while(e.getOffset() > a.getOffset()){
             i += 1
+            a = ans(i)
           }
           if(e.getOffset() == a.getOffset())
-            tp += 1
+            if(!justOffset && e.getSurfaceForm().equals(a.getSurfaceForm())){
+              tp += 1
+              /*println(a) //debug*/
+            }
         }
 
         val precision = if(ans.length != 0) tp / ans.length else -1
         val recall = if(expected.length != 0) tp / expected.length else -1
         var f1 = precision+recall
         f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (precision+recall) else -1
-
-        SpotlightLog.info(this.getClass, "Paragraph "+countParagraphs+" Measures:\nPrecision = "+precision+
-                                          "\nRecall = "+recall+"\nF1-score = "+f1)
 
         totRetrieved += ans.length
         totRelevant += expected.length
@@ -67,12 +89,15 @@ object SpotEval{
         avgPrecision += precision
         avgRecall += recall
 
+        SpotlightLog.info(this.getClass, "Paragraph "+countParagraphs+" Measures:\nTP = "+tp+"\nPrecision = "+precision+
+          "\nRecall = "+recall+"\nF1-score = "+f1)
+
       }catch{
         case e: FileNotFoundException => {
-          SpotlightLog.warn(this.getClass, "Invalid answer to the cURL request: %s" , spotInterface+paragraph.text.text)
+          SpotlightLog.warn(this.getClass, "Discard paragraph %d. Invalid answer to the cURL request: %s" , countParagraphs, spotInterface+paragraph.text.text)
         }
         case e: SAXParseException => {
-          SpotlightLog.warn(this.getClass, "Could not parse the Spoter result:\n%s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
+          SpotlightLog.warn(this.getClass, "Could not parse the Spotter result:\n%s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
         }
       }
 
@@ -87,40 +112,23 @@ object SpotEval{
       f1OfTotMeasures = if(f1OfTotMeasures > 0 && totPrecision >= 0 && totRecall >= 0)
         2*totPrecision*totRecall / (totPrecision+totRecall) else -1
 
-      SpotlightLog.info(this.getClass, "Whole Corpus Measures:\nPrecision = "+totPrecision+"\nRecall = "+totRecall+
-                                        "\nF1-score = "+f1OfTotMeasures)
+      SpotlightLog.info(this.getClass, "Whole Corpus Measures:\nTP = "+totTP+"\nTot Precision = "+totPrecision+
+        "\nTot Recall = "+totRecall+"\nF1-score from tot metrics= "+f1OfTotMeasures)
 
       avgPrecision /= countParagraphs
       avgRecall /= countParagraphs
       var f1OfAvgMeasures = avgPrecision+avgRecall
       f1OfAvgMeasures = if(f1OfAvgMeasures > 0) 2*avgPrecision*avgRecall / (avgPrecision+avgRecall) else -1
 
-      SpotlightLog.info(this.getClass, "Average of Paragraphs Measures:\nPrecision = "+avgPrecision+"\nRecall = "+avgRecall+
-                                       "\nF1-score = "+f1OfAvgMeasures)
+      SpotlightLog.info(this.getClass, "Average of Paragraphs Measures:\nNum of paragraphs = "+countParagraphs+
+        "\nAvg Precision = "+avgPrecision+"\nAvg Recall = "+avgRecall+"\nF1-score from avg metrics = "+f1OfAvgMeasures)
     }
 
-//    if(tmpFile.exists())
-//      if(!tmpFile.delete())
-//        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
+    if(tmpFile.exists())
+      if(!tmpFile.delete())
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
   }
 
-//  def convertFrom(list: List[Any]): List[SpotOccurrence] = {
-//    var out: List[SpotOccurrence] = List()
-//
-//    if(list.getClass.equals(List[DBpediaResourceOccurrence]().getClass)){
-//        list.foreach { e =>
-//          out = out :+ new SpotOccurrence(e.asInstanceOf[DBpediaResourceOccurrence])
-//        }
-//    }else if(list.getClass.equals(List[SurfaceFormOccurrence]().getClass)){
-//        list.foreach { e =>
-//          out = out :+ new SpotOccurrence(e.asInstanceOf[SurfaceFormOccurrence])
-//        }
-//    }else{
-//      throw new IllegalArgumentException("Invalid type of the elements of argument: list. It must be a list of DBpediaResourceOccurrence OR SurfaceFormOccurrence.")
-//    }
-//
-//    out
-//  }
   def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence]): List[SpotOccurrence] = {
     var out: List[SpotOccurrence] = List()
 
@@ -141,7 +149,10 @@ object SpotEval{
   }
 
   def main(args: Array[String]){
-    evaluate(MilneWittenCorpus.fromDirectory(new File("/home/alexandre/Desktop/mock-MilneWitten")))
+    //val mewDir: String = "/home/alexandre/Desktop/mock-MilneWitten"
+    val mewDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
+
+    evaluate(MilneWittenCorpus.fromDirectory(new File(mewDir)))
   }
 
 }
@@ -154,4 +165,6 @@ class SpotOccurrence(offset : Int, surfaceForm : SurfaceForm) extends Comparable
 
   def getOffset(): Int = offset
   def getSurfaceForm(): SurfaceForm = surfaceForm
+
+  override def toString: String = "SpotOccurrence[%d | %s]".format(offset, surfaceForm)
 }
