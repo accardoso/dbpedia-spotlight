@@ -1,6 +1,6 @@
 import java.io.{PrintStream, FileNotFoundException, File}
 import java.net.URLEncoder
-import org.dbpedia.spotlight.corpus.MilneWittenCorpus
+import org.dbpedia.spotlight.corpus.{AidaCorpus, CSAWCorpus, MilneWittenCorpus}
 import org.dbpedia.spotlight.io.AnnotatedTextSource
 import org.dbpedia.spotlight.log.SpotlightLog
 import org.dbpedia.spotlight.model._
@@ -55,13 +55,20 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
   }
 
   /* Evaluate the /spot interface result using the spotter for the Corpus on src and save it into the output tsv file*/
-  def evaluate(src: AnnotatedTextSource, spotter: String, output: PrintStream) = {
+  def evaluate(src: AnnotatedTextSource, spotter: String, outputFileName: String) = {
+    SpotlightLog.info(this.getClass, "Evaluation begin with configuration:" +
+      "\nCorpus: %s".format(src.name)+
+      "\nServer: %s".format(spotlightServer)+
+      "\nSpotter: %s".format(spotter)+
+      "\nEquality Policy: %s".format(if(justOffset) "Just Offset" else "Usual (Offset & Surface Form)"))
+
     /* Define the spotlight server /spot interface url for the informed spotter */
     var spotterParam: String = spotter
     if(spotter.equals("")){
         spotterParam = "Default"
     }
-    val spotInterface: String = spotlightServer + "spot?"+"spotter="+spotterParam+"&"+"text="
+    //val spotInterface: String = spotlightServer + "spot?"+"spotter="+spotterParam+"&"+"text="
+    val spotInterface: String = spotlightServer + "spot/"
 
     /* Metrics var/val */
     var totRetrieved = 0
@@ -73,17 +80,42 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
     var avgRecall: Float = 0
     var avgF1: Float = 0
 
-    val parser: SpotXmlParser = new SpotXmlParser()
-    val tmpFile: File = new File("SpotEval.tmp")
+    /* Discarded paragraphs counters */
+    var invalidAnsToHttpRequest = 0
+    var couldNotParseAns = 0
+
+    /* Requests and comparisons */
+    val parser: SpotXmlParser = new SpotXmlParser()    
+    val tmpStdOutFile: File = new File("SpotEval-curl-"+System.currentTimeMillis()+".stdout.tmp")
+    val tmpStdErrFile: File = new File("SpotEval-curl-"+System.currentTimeMillis()+".stderr.tmp")
+    val tmpPostDataFile: File = new File("SpotEval-curl-"+System.currentTimeMillis()+".post-data.tmp")
+    val outputStream: PrintStream = new PrintStream(outputFileName)
     src.foreach{ paragraph =>
+
+      if(countParagraphs<66){
+        countParagraphs += 1
+      }else{
+
+
       /* Request the server's Spotlight */
-      val curlcmd: String = "curl -o "+tmpFile.getCanonicalPath+" "+spotInterface+URLEncoder.encode(paragraph.text.text, "UTF-8")
+      val postDataStream: PrintStream = new PrintStream(tmpPostDataFile)
+      postDataStream.print("?spotter="+spotterParam+"&text=")
+      postDataStream.print(URLEncoder.encode(paragraph.text.text, "UTF-8"))
+      val curlcmd: String = "curl -d @"+tmpPostDataFile.getCanonicalPath+" -o "+tmpStdOutFile.getCanonicalPath+" --stderr "+tmpStdErrFile+" "+spotInterface
+      //val curlcmd: String = "curl -o "+tmpStdOutFile.getCanonicalPath+" --stderr "+tmpStdErrFile+" "+spotInterface+URLEncoder.encode(paragraph.text.text, "UTF-8")
       curlcmd.!
 
       var ans:List[SpotEvalOccurrence] = List()
       try{
         /* Read the answer as List of SpotEvalOccurrence and sort it*/
-        ans = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(parser.extract(new Text(Source.fromFile(tmpFile).getLines().mkString(""))).asScala.toList).sorted
+        try{
+          ans = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(parser.extract(new Text(Source.fromFile(tmpStdOutFile).getLines().mkString(""))).asScala.toList).sorted
+        } catch {
+          case e: SAXParseException => {
+            val escaped = "<annotation text=\"Escaped by SpotEval.evaluate\">"+Source.fromFile(tmpStdOutFile).getLines().drop(1).mkString("")
+            ans = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(parser.extract(new Text(escaped)).asScala.toList).sorted
+          }
+        }
 
         /* Read the paragraph expected annotations as List of SpotEvalOccurrence and sort it*/
         val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences).sorted
@@ -125,17 +157,21 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
         avgF1 += f1
 
         /* Save the Paragraph's metrics  */
-        output.println("P#"+countParagraphs+"\t"+tp.toInt+"\t"+ans.length+"\t"+expected.length+"\t"+precision+"\t"+recall+"\t"+f1)
+        outputStream.println("P#"+countParagraphs+"\t"+tp.toInt+"\t"+ans.length+"\t"+expected.length+"\t"+precision+"\t"+recall+"\t"+f1)
 
       }catch{/* Invalid paragraphs are discard */
         case e: FileNotFoundException => {
-          SpotlightLog.error(this.getClass, "Invalid answer to the cURL request: %s" , spotInterface+paragraph.text.text)
+          //SpotlightLog.error(this.getClass, "Invalid answer to the cURL request: %s" , spotInterface+paragraph.text.text)
+          SpotlightLog.error(this.getClass, "No answer to the request with the Text:\n%s" , paragraph.text.text)
+          invalidAnsToHttpRequest += 1
         }
         case e: SAXParseException => {
-          SpotlightLog.error(this.getClass, "Could not parse the Spotter result:\n%s" , Source.fromFile(tmpFile).getLines().mkString("\n"))
+          SpotlightLog.error(this.getClass, "Could not parse the Spotlight answer:\n%s" , Source.fromFile(tmpStdOutFile).getLines().mkString("\n"))
+          SpotlightLog.error(this.getClass, "Parser error: %s", e.getMessage)
+          couldNotParseAns += 1
         }
       }
-
+      }
     }
     /* If no paragraph is valid inform it and do not make sense calculate the metrics */
     if(countParagraphs == 0)
@@ -149,7 +185,7 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
         2*totPrecision*totRecall / (totPrecision+totRecall) else -1
 
       /* Save the Whole Text (All valid paragraph)'s metrics  */
-      output.println("All\t"+totTP.toInt+"\t"+totRetrieved+"\t"+totRelevant+"\t"+totPrecision+"\t"+totRecall+"\t"+f1OfTotMeasures)
+      outputStream.println("All\t"+totTP.toInt+"\t"+totRetrieved+"\t"+totRelevant+"\t"+totPrecision+"\t"+totRecall+"\t"+f1OfTotMeasures)
 
       /* Calculate the average of the paragraph's metrics  */
       avgTP /= countParagraphs
@@ -160,13 +196,29 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
       val avgRelevant = totRelevant/countParagraphs
 
       /* Save the average of the paragraph's metrics  */
-      output.println("Avg\t"+avgTP.toInt+"\t"+avgRetrieved+"\t"+avgRelevant+"\t"+avgPrecision+"\t"+avgRecall+"\t"+avgF1)
+      outputStream.println("Avg\t"+avgTP.toInt+"\t"+avgRetrieved+"\t"+avgRelevant+"\t"+avgPrecision+"\t"+avgRecall+"\t"+avgF1)
     }
 
+    outputStream.close()
+
     /* Delete the temporary file */
-    if(tmpFile.exists())
-      if(!tmpFile.delete())
-        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpFile.getAbsolutePath)
+    if(tmpStdOutFile.exists())
+      if(!tmpStdOutFile.delete())
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpStdOutFile.getAbsolutePath)
+    if(tmpStdErrFile.exists())
+      if(!tmpStdErrFile.delete())
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpStdErrFile.getAbsolutePath)
+    if(tmpPostDataFile.exists())
+      if(!tmpPostDataFile.delete())
+        SpotlightLog.warn(this.getClass, "Could not delete the temporary file: %s", tmpPostDataFile.getAbsolutePath)
+
+
+    /* Evaluations Stats */
+    SpotlightLog.info(this.getClass, ("Evaluation is finished." +
+      "\nThe result is saved at: %s").format(outputFileName) +
+      "\nNumber of no answer to the HTTP request: %d".format(invalidAnsToHttpRequest)+
+      "\nNumber of paragraphs that the Spotlight answer could not be parsed: %d".format(couldNotParseAns))
+
   }
 
   /* Call evaluate method for the same src n times one for each spotter of the list save its output tsv file into the informed directory */
@@ -175,12 +227,12 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
       throw new NoSuchElementException("Could not find output directory: "+outputFolder.getCanonicalPath)
 
     spotterList.foreach{ spotter =>
-      val stream = new PrintStream(outputFolder.getCanonicalPath+File.separator+"SpotEvalResults-"+src.name+"-"+spotter+".tsv")
+      val outputFileName: String = outputFolder.getCanonicalPath+File.separator+"SpotEvalResults-"+src.name+"-"+spotter+".tsv"
       try{
-        evaluate(src, spotter, stream)
+        evaluate(src, spotter, outputFileName)
       }catch {
         case e: Exception => {
-          SpotlightLog.error(this.getClass, "The evaluate method for spotter \"%s\" threw the exception bellow: %s")
+          SpotlightLog.error(this.getClass, "The evaluate method for spotter \"%s\" threw the exception bellow: %s", spotter, e.getMessage+"\n"+e.getStackTrace.mkString("\n"))
           SpotlightLog.info(this.getClass, "Continue to the next spotter..")
         }
       }
@@ -197,13 +249,19 @@ object SpotEval{
 
   def main(args: Array[String]){
 
-    val evaluator = new SpotEval()
+    val luceneEvaluator = new SpotEval()
 
-    val mwMockDir: String = "/home/alexandre/Desktop/mock-MilneWitten"
-    evaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("spot-eval-m&w-mock"))
+//    val mwMockDir: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
+//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w-mock"))
 
-    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
-    evaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("spot-eval-m&w"))
+//    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
+//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
+
+    val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
+    luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
+
+//    val aidaFile = "/home/alexandre/intrinsic/corpus/aida-yago2-dataset/aida-yago2-dataset/AIDA-YAGO2-annotations.tsv"
+//    luceneEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-aida"))
 
   }
 
