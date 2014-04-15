@@ -266,18 +266,23 @@ object SpotEval{
   def main(args: Array[String]){
 
     val luceneEvaluator = new SpotEval()
+    val jdbmEvaluator = new SpotEval("http://spotlight.sztaki.hu:2222/rest/")
 
     val mwMockDir: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
     luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w-mock"))
+    jdbmEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), List("Default"), new File("/home/alexandre/projects/spot-eval-jdbm/spot-eval-m&w-mock"))
 
-//    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
-//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
-//
-//    val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
-//    luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
-//
+    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
+    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
+    jdbmEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), List("Default"), new File("/home/alexandre/projects/spot-eval-jdbm/spot-eval-m&w"))
+
+    val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
+    luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
+    jdbmEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), List("Default"), new File("/home/alexandre/projects/spot-eval-jdbm/spot-eval-csaw"))
+
     val aidaFile = "/home/alexandre/intrinsic/corpus/aida-yago2-dataset/aida-yago2-dataset/AIDA-YAGO2-annotations.tsv"
     luceneEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-aida"))
+    jdbmEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), List("Default"), new File("/home/alexandre/projects/spot-eval-jdbm/spot-eval-aida"))
 
   }
 
