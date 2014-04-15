@@ -138,7 +138,7 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
         val precision = if(ans.length != 0) tp / ans.length else -1
         val recall = if(expected.length != 0) tp / expected.length else -1
         var f1 = precision+recall
-        f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (precision+recall) else -1
+        f1 = if(f1 > 0 && precision >= 0 && recall >= 0) 2*precision*recall / (f1) else -1
 
         /* Increment the metric of the whole text (All valid paragraphs) and the average metrics*/
         totRetrieved += ans.length
@@ -146,12 +146,24 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
         totTP += tp
         countParagraphs += 1
         avgTP += tp
-        avgPrecision += precision
-        avgRecall += recall
-        avgF1 += f1
+        var precisionStr: String = "NaN"
+        if(precision >= 0){
+          avgPrecision += precision
+          precisionStr = precision.toString
+        }
+        var recallStr: String = "NaN"
+        if(recall >= 0){
+          avgRecall += recall
+          recallStr = recall.toString
+        }
+        var f1Str: String = "NaN"
+        if(f1 >= 0){
+          avgF1 += f1
+          f1Str = f1.toString
+        }
 
         /* Save the Paragraph's metrics  */
-        outputStream.println("P#"+countParagraphs+"\t"+tp.toInt+"\t"+ans.length+"\t"+expected.length+"\t"+precision+"\t"+recall+"\t"+f1)
+        outputStream.println("P#"+countParagraphs+"\t"+tp.toInt+"\t"+ans.length+"\t"+expected.length+"\t"+precisionStr+"\t"+recallStr+"\t"+f1Str)
 
       }catch{/* Invalid paragraphs are discard */
         case e: FileNotFoundException => {
@@ -179,7 +191,17 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
         2*totPrecision*totRecall / (totPrecision+totRecall) else -1
 
       /* Save the Whole Text (All valid paragraph)'s metrics  */
-      outputStream.println("All\t"+totTP.toInt+"\t"+totRetrieved+"\t"+totRelevant+"\t"+totPrecision+"\t"+totRecall+"\t"+f1OfTotMeasures)
+      var totPrecisionStr: String = "NaN"
+      if(totPrecision >= 0)
+        totPrecisionStr = totPrecision.toString
+      var totRecallStr: String = "NaN"
+      if(totRecall >= 0)
+        totRecallStr = totRecall.toString
+      var f1OfTotMeasuresStr: String = "NaN"
+      if(f1OfTotMeasures >= 0)
+        f1OfTotMeasuresStr = f1OfTotMeasures.toString
+
+      outputStream.println("All\t"+totTP.toInt+"\t"+totRetrieved+"\t"+totRelevant+"\t"+totPrecisionStr+"\t"+totRecallStr+"\t"+f1OfTotMeasuresStr)
 
       /* Calculate the average of the paragraph's metrics  */
       avgTP /= countParagraphs
@@ -248,12 +270,12 @@ object SpotEval{
     val mwMockDir: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
     luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w-mock"))
 
-    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
-    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
-
-    val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
-    luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
-
+//    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
+//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
+//
+//    val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
+//    luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
+//
     val aidaFile = "/home/alexandre/intrinsic/corpus/aida-yago2-dataset/aida-yago2-dataset/AIDA-YAGO2-annotations.tsv"
     luceneEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-aida"))
 
