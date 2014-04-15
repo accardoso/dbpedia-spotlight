@@ -91,12 +91,6 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
     val tmpPostDataFile: File = new File("SpotEval-curl-"+System.currentTimeMillis()+".post-data.tmp")
     val outputStream: PrintStream = new PrintStream(outputFileName)
     src.foreach{ paragraph =>
-
-      if(countParagraphs<66){
-        countParagraphs += 1
-      }else{
-
-
       /* Request the server's Spotlight */
       val postDataStream: PrintStream = new PrintStream(tmpPostDataFile)
       postDataStream.print("?spotter="+spotterParam+"&text=")
@@ -171,7 +165,7 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
           couldNotParseAns += 1
         }
       }
-      }
+
     }
     /* If no paragraph is valid inform it and do not make sense calculate the metrics */
     if(countParagraphs == 0)
@@ -251,17 +245,17 @@ object SpotEval{
 
     val luceneEvaluator = new SpotEval()
 
-//    val mwMockDir: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
-//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w-mock"))
+    val mwMockDir: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
+    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwMockDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w-mock"))
 
-//    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
-//    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
+    val mwDir: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
+    luceneEvaluator.batchEvaluation(MilneWittenCorpus.fromDirectory(new File(mwDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-m&w"))
 
     val csawPreDir = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
     luceneEvaluator.batchEvaluation(CSAWCorpus.fromDirectory(new File(csawPreDir)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-csaw"))
 
-//    val aidaFile = "/home/alexandre/intrinsic/corpus/aida-yago2-dataset/aida-yago2-dataset/AIDA-YAGO2-annotations.tsv"
-//    luceneEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-aida"))
+    val aidaFile = "/home/alexandre/intrinsic/corpus/aida-yago2-dataset/aida-yago2-dataset/AIDA-YAGO2-annotations.tsv"
+    luceneEvaluator.batchEvaluation(AidaCorpus.fromFile(new File(aidaFile)), allSpotters, new File("/home/alexandre/projects/spot-eval/spot-eval-aida"))
 
   }
 
