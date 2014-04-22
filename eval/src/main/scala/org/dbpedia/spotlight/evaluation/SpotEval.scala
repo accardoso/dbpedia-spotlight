@@ -1,3 +1,5 @@
+package org.dbpedia.spotlight.evaluation
+
 import java.io.{PrintStream, FileNotFoundException, File}
 import java.net.URLEncoder
 import org.dbpedia.spotlight.corpus.{AidaCorpus, CSAWCorpus, MilneWittenCorpus}
@@ -95,6 +97,8 @@ class SpotEval(var spotlightServer: String, val justOffset: Boolean){
       val postDataStream: PrintStream = new PrintStream(tmpPostDataFile)
       postDataStream.print("?spotter="+spotterParam+"&text=")
       postDataStream.print(URLEncoder.encode(paragraph.text.text, "UTF-8"))
+
+      //TODO remove Unix cURL dependency. It was almost at: org.dbpedia.spotlight.web.rest.ServerTextSizeLimitTest.scala
       val curlcmd: String = "curl -d @"+tmpPostDataFile.getCanonicalPath+" -o "+tmpStdOutFile.getCanonicalPath+" --stderr "+tmpStdErrFile+" "+spotInterface
       //val curlcmd: String = "curl -o "+tmpStdOutFile.getCanonicalPath+" --stderr "+tmpStdErrFile+" "+spotInterface+URLEncoder.encode(paragraph.text.text, "UTF-8")
       curlcmd.!
