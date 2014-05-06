@@ -11,6 +11,7 @@ import org.xml.sax.SAXParseException
 import scala.io.Source
 import sys.process._
 import scala.collection.JavaConverters._
+import scala.util.control.Breaks._
 
 /**
  * Evaluation class for any Spotter at the /spot interface. Perform a evaluation which call the /spot for the text of a
@@ -60,17 +61,15 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
 
   def spotParagraph(paragraph: AnnotatedParagraph, outputFileName: String){
-    val postDataTmpFile: File = new File(outputFileName+".http-post-request-data.tmp")
+    val postDataTmpFile: File = new File(outputFileName+".text-param.tmp")
     val writer: FileWriter = new FileWriter(postDataTmpFile, false)
-    writer.write("?spotter="+spotter+"&text=")
+    writer.write("text=")
     writer.write(URLEncoder.encode(paragraph.text.text, "UTF-8"))
     writer.close()
 
     //TODO remove Unix cURL dependency. It was almost at: org.dbpedia.spotlight.web.rest.ServerTextSizeLimitTest.scala
-    val curlcmd: String = "curl -s -o "+outputFileName+" -d @"+postDataTmpFile+" "+spotlightServer
-    Console.withOut(new PrintStream(outputFileName)){
-      curlcmd.!
-    }
+    val curlcmd: String = "curl -s -o "+outputFileName+" --data spotter="+spotter+" --data @"+postDataTmpFile+" "+spotlightServer
+    curlcmd.!
 
     if(postDataTmpFile.exists())
       if(!postDataTmpFile.delete())
@@ -78,6 +77,11 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
   }
 
   def spotCorpus(corpus: AnnotatedTextSource, outputDirName: String){
+    SpotlightLog.info(this.getClass, "Spot requesting parameters:" +
+      "\n\tCorpus = "+corpus.name+
+      "\n\tEvaluator = "+this.toString+
+      "\n\tSpotting output directory = "+outputDirName)
+
     val outputDir: File = new File(outputDirName)
     if(!outputDir.exists() || !outputDir.isDirectory)
       throw new IllegalArgumentException("Invalid output directory: "+outputDir.getCanonicalPath)
@@ -142,6 +146,12 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
   /* Evaluate the /spot interface result at spottedParagraphsDirName using the Corpus spots and save it into the output tsv file */ 
   def evaluate(corpus: AnnotatedTextSource, spottedParagraphsDirName: String, outputFileName: String){
+    SpotlightLog.info(this.getClass, "Evaluation parameters:" +
+      "\n\tCorpus = "+corpus.name+
+      "\n\tEvaluator = "+this.toString+
+      "\n\tSpotted paragraphs directory = "+spottedParagraphsDirName+
+      "\n\tEvaluation results file = "+outputFileName)
+
     val outputStream = new PrintStream(outputFileName)
 
     /* Metrics var */
@@ -203,12 +213,12 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
     if(countParagraphs == 0)
       SpotlightLog.warn(this.getClass, "The informed source has no paragraphs to be evaluated.")
     else{ //If at least one paragraph is valid calculate the metrics for the whole text (all valid paragraphs) and the average ones
-    /* Calculate the Whole Text (All valid paragraph)'s metrics */
-    val totPrecision = if(totRetrieved != 0) totTP / totRetrieved else -1
-      val totRecall = if(totRelevant != 0) totTP / totRelevant else -1
-      var f1OfTotMeasures = totPrecision+totRecall
+      /* Calculate the Whole Text (All valid paragraph)'s metrics */
+      val totPrecision: Float = if(totRetrieved != 0) totTP / totRetrieved.toFloat else -1
+      val totRecall: Float = if(totRelevant != 0) totTP / totRelevant.toFloat else -1
+      var f1OfTotMeasures: Float = totPrecision+totRecall
       f1OfTotMeasures = if(f1OfTotMeasures > 0 && totPrecision >= 0 && totRecall >= 0)
-        2*totPrecision*totRecall / (totPrecision+totRecall) else -1
+      2*totPrecision*totRecall / (totPrecision+totRecall) else -1
 
       /* Save the Whole Text (All valid paragraph)'s metrics  */
       var totPrecisionStr: String = "NaN"
@@ -228,8 +238,8 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
       avgPrecision /= countParagraphs
       avgRecall /= countParagraphs
       avgF1 /= countParagraphs
-      val avgRetrieved = totRetrieved/countParagraphs
-      val avgRelevant = totRelevant/countParagraphs
+      val avgRetrieved: Float = totRetrieved/countParagraphs
+      val avgRelevant: Float = totRelevant/countParagraphs
 
       /* Save the average of the paragraph's metrics  */
       outputStream.println(List("Avg", avgTP, avgRetrieved, avgRelevant, avgPrecision, avgRecall, avgF1).mkString("\t"))
@@ -242,26 +252,25 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 }
 
 object SpotEval{
-
-  def batchSpotEval(evaluatorsList: List[SpotEval], corpus: AnnotatedTextSource, outputBaseDirName: String){
+  
+  def batchSpotEval(evaluatorsList: List[SpotEval], corpus: AnnotatedTextSource, outputBaseDirName: String): File = {       
     val outputBaseDir: File = new File(outputBaseDirName)
     if(!outputBaseDir.exists() && !outputBaseDir.mkdir())
       throw new NoSuchElementException("Could not reach the output directory: "+outputBaseDir.getCanonicalPath)
     val spottedCorpusBaseDir = new File(outputBaseDir.getCanonicalPath+File.separator+"spotted")
     if(!spottedCorpusBaseDir.exists() && !spottedCorpusBaseDir.mkdir())
       throw new NoSuchElementException("Could not reach the output directory: "+spottedCorpusBaseDir.getCanonicalPath)
-    val resultsBaseDir = new File(outputBaseDir.getCanonicalPath+File.separator+"results")
-    if(!resultsBaseDir.exists() && !resultsBaseDir.mkdir())
-      throw new NoSuchElementException("Could not reach the output directory: "+resultsBaseDir.getCanonicalPath)
-
+    val resultsDir = new File(outputBaseDir.getCanonicalPath+File.separator+"results")
+    if(!resultsDir.exists() && !resultsDir.mkdir())
+      throw new NoSuchElementException("Could not reach the output directory: "+resultsDir.getCanonicalPath)
 
       evaluatorsList.foreach{ evaluator =>
         //Execute the Evaluator's spot interface for each paragraphs of the corpus
         val spottingOutputDir: File = new File(spottedCorpusBaseDir+File.separator+evaluator.spotter)
         if(!spottingOutputDir.exists() && !spottingOutputDir.mkdir())
           throw new NoSuchElementException("Could not reach the output directory: "+spottingOutputDir.getCanonicalPath)        
-        var spotted = true
-        //Run the spotting and inform exceptions
+        var spotted = true    
+         //Run the spotting and inform exceptions
         try{
           evaluator.spotCorpus(corpus, spottingOutputDir.getCanonicalPath)
         }catch {
@@ -271,53 +280,102 @@ object SpotEval{
           }
         }
         //Evaluate the spotted paragraphs, only if no exception has occurred when spotting the corpus, otherwise continue to the next evaluator
-        if(spotted){
+        if(spotted){                 
           //The output file with the evaluation results
-          val resultsOutputFileName: String = resultsBaseDir.getCanonicalPath+File.separator+"SpotEvalResults-"+corpus.name+"-"+evaluator.spotter+".tsv"
+          val resultsOutputFileName: String = resultsDir.getCanonicalPath+File.separator+"SpotEvalResults-"+corpus.name+"-"+evaluator.spotter+".tsv"                    
           //Run the evaluation and inform exceptions
           try{
             evaluator.evaluate(corpus, spottingOutputDir.getCanonicalPath, resultsOutputFileName)
           }catch {
             case e: Exception => {
-              SpotlightLog.error(this.getClass, "When evaluating the spotted corpus is at %s with %s threw the exception bellow:\n%s",
+              SpotlightLog.error(this.getClass, "The evaluation of spotted corpus at %s\n with %s\n threw the exception bellow:\n%s",
                 spottingOutputDir.getCanonicalPath, evaluator.toString, e.getMessage+"\n"+e.getStackTrace.mkString("\n"))
               SpotlightLog.info(this.getClass, "Continue to the next spotter..")
             }
           }        
         }else //If an exception happens during the spotting continue to the next evaluator
-          SpotlightLog.info(this.getClass, "Continue to the next spotter..")
+          SpotlightLog.info(this.getClass, "An error occurred when spotting the paragraphs. Continue to the next spotter..")        
+      }
+    
+    resultsDir  
+  }
+
+  def gather(textId: String, evaluatorsList: List[SpotEval], corpus: AnnotatedTextSource, resultsDir: File): String = {
+    val textIdStd = textId.toLowerCase().trim
+    var textLineId: String = ""
+    if(textIdStd(0).equals("p"))
+      if(textIdStd(1).equals("#"))
+        textLineId = "P#"+textIdStd.substring(2)
+      else
+        textLineId = "P#"+textIdStd.substring(1)
+    else if(textIdStd.equals("all") || textIdStd.equals("tot") || textIdStd.equals("whole") || textIdStd.equals("entire") || textIdStd.equals("total"))
+      textLineId = "All"
+    else if(textIdStd.equals("avg") || textIdStd.equals("average"))
+      textLineId = "Avg"
+    else
+      throw new IllegalArgumentException("Invalid textId = "+textId)
+
+    val outputFileName = resultsDir.getCanonicalPath+File.separator+corpus.name+"-"+textLineId
+    val stream = new PrintStream(outputFileName)
+    evaluatorsList.foreach{ evaluator =>
+      val evaluatorResultsFileName: String = resultsDir.getCanonicalPath+File.separator+"SpotEvalResults-"+corpus.name+"-"+evaluator.spotter+".tsv"
+      breakable(
+        Source.fromFile(evaluatorResultsFileName).getLines().foreach{ line =>
+          val lineArray = line.split("\t")
+          if(lineArray(0).equals(textLineId)){
+            stream.println((evaluator.spotter +: lineArray.tail).mkString("\t"))
+            break()
+          }
+        }
+      )
+    }
+    stream.close()
+
+    outputFileName
+  }
+
+  def defaultPipeLine(evaluatorsList: List[SpotEval], goldStandardList: List[(AnnotatedTextSource, String)]){ //goldStandardList: List[(corpus, resultsDirNameOfTheCorpus)]
+    goldStandardList.foreach{ gs =>     
+      val resultsDir: File = batchSpotEval(evaluatorsList, gs._1, gs._2)
+      List("All", "Avg").foreach{ id =>
+        SpotlightLog.info(this.getClass, "The metrics line \"%s\" of each evaluator were gathered in: %s",
+                                          id, gather(id, evaluatorsList, gs._1, resultsDir))
       }
     }
+  }
 
   def main(args: Array[String]){
 
     var evaluatorsList = List[SpotEval]()
-    val luceneSpoters = List("LingPipeSpotter",// "AtLeastOneNounSelector", "CoOccurrenceBasedSelector",
-      "NESpotter"//, "KeyphraseSpotter", "OpenNLPChunkerSpotter"
+    val luceneSpoters = List("LingPipeSpotter", "AtLeastOneNounSelector", "CoOccurrenceBasedSelector",
+      "NESpotter", "KeyphraseSpotter", "OpenNLPChunkerSpotter"
     )
     luceneSpoters.foreach{ spotter =>
       evaluatorsList = evaluatorsList :+ new SpotEval("http://spotlight.dbpedia.org/rest/", spotter)
     }
-    //evaluatorsList = evaluatorsList :+ new SpotEval("http://spotlight.sztaki.hu:2222/rest/", "Default")
+    evaluatorsList = evaluatorsList :+ new SpotEval("http://spotlight.sztaki.hu:2222/rest/", "Default")
 
     val outputBaseDirName: String = "/home/alexandre/projects/spot-eval"
 
-    val mwMockDirName: String = "/home/alexandre/intrinsic/corpus/mock-MilneWitten"
-    batchSpotEval(evaluatorsList, MilneWittenCorpus.fromDirectory(new File(mwMockDirName)), outputBaseDirName+"/mw-mock")
+    var gsList: List[(AnnotatedTextSource, String)] = List()
 
-//    val mwDirName: String = "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories"
-//    batchSpotEval(evaluatorsList, MilneWittenCorpus.fromDirectory(new File(mwDirName)), outputBaseDirName+"/mw")
-//
-//    val csawPreDirName: String = "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs"
-//    batchSpotEval(evaluatorsList, CSAWCorpus.fromDirectory(new File(csawPreDirName)), outputBaseDirName+"/csaw")
-//
-//    val aidaFileName: String = "/home/alexandre/intrinsic/corpus/conll-yago/CoNLL-YAGO.tsv"
-//    batchSpotEval(evaluatorsList, AidaCorpus.fromFile(new File(aidaFileName)), outputBaseDirName+"/conll")
+    //M&W mock
+    gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
+      "/home/alexandre/intrinsic/corpus/2u-mock-MilneWitten")), (outputBaseDirName+"/mw-mock") )
+    //M&W
+    gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
+      "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories")), (outputBaseDirName+"/mw") )
+    //CSAW mock
+    gsList = gsList :+ ( CSAWCorpus.fromDirectory(new File(
+      "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs")), (outputBaseDirName+"/csaw") )
+    //CoNLL
+    gsList = gsList :+ ( AidaCorpus.fromFile(new File(
+      "/home/alexandre/intrinsic/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )
 
+    defaultPipeLine(evaluatorsList, gsList)
   }
 
 }
-
 
 /* The Abstract Data Type for the spot results and corpus compatibility */
 class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm) extends Comparable[SpotEvalOccurrence]{
