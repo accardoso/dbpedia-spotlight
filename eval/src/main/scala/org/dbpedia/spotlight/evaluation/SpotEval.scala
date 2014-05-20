@@ -248,6 +248,87 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
     outputStream.close()
   }
 
+  def complementOfTP(corpus: AnnotatedTextSource, spottedParagraphsDirName: String, outputFileName: String) {
+    SpotlightLog.info(this.getClass, "TP Complement definition parameters:" +
+      "\n\tCorpus = "+corpus.name+
+      "\n\tEvaluator = "+this.toString+
+      "\n\tSpotted paragraphs directory = "+spottedParagraphsDirName+
+      "\n\tTP Complement results file = "+outputFileName)
+
+    val outputStream = new PrintStream(outputFileName)
+
+    var countParagraphs: Int = 0
+
+    corpus.foreach{ paragraph =>
+      countParagraphs += 1
+
+      /* Read the answer as List of SpotEvalOccurrence from the file with the current paragraph spotted */
+      val spottedParagraphFileName: String = spottedParagraphsDirName+File.separator+corpus.name+"-"+spotter+"-P"+countParagraphs
+      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName))
+
+      /* Read the paragraph expected annotations as List of SpotEvalOccurrence from the occurrences of the current paragraph (AnnotatedParagraph) */
+      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences)
+
+      /* Compare the expected and the Spotlight answer and define the true positives for the current paragraph */
+      val paragraphComplement = paragraphComplementOfTP(expected , ans)
+
+      /* Save the average of the paragraph's metrics  */
+      paragraphComplement.foreach{ c =>
+        outputStream.println(List("P#"+countParagraphs, c._1.getOffset(), c._1.getSurfaceForm().name, c._2).mkString("\t"))
+      }
+    }
+    /* If no paragraph is valid inform it and do not make sense calculate the metrics */
+    if(countParagraphs == 0)
+      SpotlightLog.warn(this.getClass, "The informed source has no paragraphs to be evaluated.")
+
+    outputStream.close()
+  }
+
+  private def paragraphComplementOfTP(expectedSpottingOccs:List[SpotEvalOccurrence], spottedParagraphSpottingOccs:List[SpotEvalOccurrence]): List[(SpotEvalOccurrence, String)] = {
+    /* Sort the Spotting Occs Lists */
+    val expected:List[SpotEvalOccurrence] = expectedSpottingOccs.sorted
+    val ans:List[SpotEvalOccurrence] = spottedParagraphSpottingOccs.sorted
+
+    var tpComplement: List[(SpotEvalOccurrence, String)] = List()
+    
+    /* Compare the ans and expected list */
+    var list: List[String] = List()
+    var i: Int = 0 //Index of the ans list current element
+    var j: Int = 0 //Index of the expected list current element
+    breakable{
+      expected.foreach{ e=>
+        if(i >= ans.length)
+          break()
+        while(e.getOffset() > ans(i).getOffset()){
+          tpComplement = tpComplement :+ (ans(i), "Retrieved")
+          i += 1
+          if(i >= ans.length)
+            break()
+        }
+
+        if(e.getOffset() == ans(i).getOffset()){
+          if(!(justOffset || e.getSurfaceForm().equals(ans(i).getSurfaceForm())) ){
+            tpComplement = tpComplement :+ (expected(j), "Relevant")
+          }
+          i += 1
+          if(i >= ans.length)
+            break()
+        }else{
+          tpComplement = tpComplement :+ (expected(j), "Relevant")
+        }
+
+        j += 1
+      }
+    }
+    if(i >= ans.length){
+      expected.slice(j, expected.length).foreach{ e =>
+        tpComplement = tpComplement :+ (e, "Relevant")
+      }
+    }
+
+    tpComplement
+  }
+
   override def toString:String = "SpotEval["+spotlightServer+" | "+spotter+" | "+justOffset+"]"  
 }
 
@@ -372,7 +453,14 @@ object SpotEval{
     gsList = gsList :+ ( AidaCorpus.fromFile(new File(
       "/home/alexandre/intrinsic/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )
 
-    defaultPipeLine(evaluatorsList, gsList)
+//    defaultPipeLine(evaluatorsList, gsList)
+
+    gsList.foreach{ gs =>
+      evaluatorsList.foreach{ e =>
+        e.complementOfTP(gs._1, gs._2+"/spotted/"+e.spotter, gs._2+"/tp-complement/"+e.spotter+".tp-complement.tsv")
+      }
+    }
+
   }
 
 }
