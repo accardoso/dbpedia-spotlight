@@ -12,6 +12,9 @@ import scala.io.Source
 import sys.process._
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks._
+import scala.collection.mutable.HashMap
+import scala.collection.mutable
+import org.dbpedia.spotlight.util.IndexingConfiguration
 
 /**
  * Evaluation class for any Spotter at the /spot interface. Perform a evaluation which call the /spot for the text of a
@@ -59,6 +62,9 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
   if(spotter.equals(""))
     spotter = "Default"
 
+  //def setTypesMap(aMap: mutable.HashMap[String, String]){
+  //  typesMap = aMap
+  //}
 
   def spotParagraph(paragraph: AnnotatedParagraph, outputFileName: String){
     val postDataTmpFile: File = new File(outputFileName+".text-param.tmp")
@@ -169,10 +175,10 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
       /* Read the answer as List of SpotEvalOccurrence from the file with the current paragraph spotted */
       val spottedParagraphFileName: String = spottedParagraphsDirName+File.separator+corpus.name+"-"+spotter+"-P"+countParagraphs
-      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName))
+      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName), SpotEval.typesMap)
 
       /* Read the paragraph expected annotations as List of SpotEvalOccurrence from the occurrences of the current paragraph (AnnotatedParagraph) */
-      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences)
+      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences, SpotEval.typesMap)
       
       /* Compare the expected and the Spotlight answer and define the true positives for the current paragraph */
       val tp: Int = compareParagraphSpotting(expected , ans)
@@ -262,12 +268,13 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
     corpus.foreach{ paragraph =>
       countParagraphs += 1
 
+      //HUMM
       /* Read the answer as List of SpotEvalOccurrence from the file with the current paragraph spotted */
       val spottedParagraphFileName: String = spottedParagraphsDirName+File.separator+corpus.name+"-"+spotter+"-P"+countParagraphs
-      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName))
+      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName), SpotEval.typesMap)
 
       /* Read the paragraph expected annotations as List of SpotEvalOccurrence from the occurrences of the current paragraph (AnnotatedParagraph) */
-      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences)
+      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences, SpotEval.typesMap)
 
       /* Compare the expected and the Spotlight answer and define the true positives for the current paragraph */
       val paragraphComplement = paragraphComplementOfTP(expected , ans)
@@ -333,7 +340,9 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 }
 
 object SpotEval{
-  
+
+  var typesMap = new mutable.HashMap[String, String]()
+
   def batchSpotEval(evaluatorsList: List[SpotEval], corpus: AnnotatedTextSource, outputBaseDirName: String): File = {       
     val outputBaseDir: File = new File(outputBaseDirName)
     if(!outputBaseDir.exists() && !outputBaseDir.mkdir())
@@ -425,7 +434,25 @@ object SpotEval{
     }
   }
 
+  def fillTypesMap(instanceTypesPath: String): mutable.HashMap[String, String] = {
+    var typesMap = new mutable.HashMap[String, String]()
+    for (line <- Source.fromFile(instanceTypesPath).getLines().drop(1)) {
+      val lineArray = line.split(" ")
+      if (lineArray.length == 4) {
+        println(lineArray(0).split("/").last.dropRight(1) + " " + lineArray(2).split("/").last.dropRight(1))
+        typesMap += lineArray(0).split("/").last.dropRight(1) -> lineArray(2).split("/").last.dropRight(1)
+      } else {
+        SpotlightLog.info(this.getClass, "An error processing the line: %s", line)
+      }
+    }
+    typesMap
+  }
+
   def main(args: Array[String]){
+
+    val config = new IndexingConfiguration("D:/Cancado/dbpedia-spotlight/conf/indexing.properties")
+    val instanceTypesFile = config.get("org.dbpedia.spotlight.data.instanceTypes")
+    typesMap = fillTypesMap(instanceTypesFile)
 
     var evaluatorsList = List[SpotEval]()
     val luceneSpoters = List("LingPipeSpotter", "AtLeastOneNounSelector", "CoOccurrenceBasedSelector",
@@ -462,7 +489,6 @@ object SpotEval{
     }
 
   }
-
 }
 
 /* The Abstract Data Type for the spot results and corpus compatibility */
@@ -475,20 +501,31 @@ class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm) extends Compar
   def getOffset(): Int = offset
   def getSurfaceForm(): SurfaceForm = surfaceForm
 
+  var sfType = "Other"
+
+  def setType(aType: String) {
+    sfType = aType
+  }
+
   override def toString: String = "SpotOccurrence[%d | %s]".format(offset, surfaceForm)
 }
 object SpotEvalOccurrence{
-  def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence]): List[SpotEvalOccurrence] = {
+
+  def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence], map: mutable.HashMap[String, String]): List[SpotEvalOccurrence] = {
     var out: List[SpotEvalOccurrence] = List()
     list.foreach { e =>
-      out = out :+ new SpotEvalOccurrence(e)
+      val spotEvalOcc = new SpotEvalOccurrence(e)
+      spotEvalOcc.setType(map.getOrElse(spotEvalOcc.getSurfaceForm().toString, "Other"))
+      out = out :+ spotEvalOcc
     }
     out
   }
-  def convertFromSurfaceFormOccurrence(list: List[SurfaceFormOccurrence]): List[SpotEvalOccurrence] = {
+  def convertFromSurfaceFormOccurrence(list: List[SurfaceFormOccurrence], map: mutable.HashMap[String, String]): List[SpotEvalOccurrence] = {
     var out: List[SpotEvalOccurrence] = List()
     list.foreach { e =>
-      out = out :+ new SpotEvalOccurrence(e)
+      val spotEvalOcc = new SpotEvalOccurrence(e)
+      spotEvalOcc.setType(map.getOrElse(spotEvalOcc.getSurfaceForm().toString, "Other"))
+      out = out :+ spotEvalOcc
     }
     out
   }
