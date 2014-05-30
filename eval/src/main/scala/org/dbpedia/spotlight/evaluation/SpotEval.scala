@@ -452,24 +452,24 @@ object SpotEval{
   def getSpotType(spot: String): String = {
     breakable(
       for (candidate <- searcher.getCandidates(new SurfaceForm(spot)).toList) {
-        println(candidate.surfaceForm.name)
+        //println(candidate.surfaceForm.name)
 
         try {
           val typesList = resStore.getResourceByName(candidate.resource.uri).getTypes.asScala.toList
-          println(candidate.resource.uri + " has: " + typesList.size + " types.")
+          //println(candidate.resource.uri + " has: " + typesList.size + " types.")
 
           for (singleType <- typesList) {
             singleType.toString match {
               case "DBpedia:Person" => {
-                println("The candidate " + candidate.surfaceForm + " is a person.")
+                //println("The candidate " + candidate.surfaceForm + " is a person.")
                 return "DBpedia:Person"
               }
               case "DBpedia:Place" => {
-                println("The candidate " + candidate.surfaceForm + " is a place.")
+                //println("The candidate " + candidate.surfaceForm + " is a place.")
                 return "DBpedia:Place"
               }
               case "DBpedia:Organisation" => {
-                println("The candidate " + candidate.surfaceForm + " is an organization.")
+                //println("The candidate " + candidate.surfaceForm + " is an organization.")
                 return "DBpedia:Organisation"
               }
               case _ =>
@@ -495,6 +495,13 @@ object SpotEval{
     candMapStore = MemoryStore.loadCandidateMapStore(isCMS, resStore, qcStore)
     searcher = new DBCandidateSearcher(resStore, sfStore, candMapStore)
 
+    //val cands = searcher.getCandidates(new SurfaceForm("PPRT"))
+    //for (cand <- cands) {
+      //println(cand.surfaceForm.name)
+    //}
+    //println(cands.size)
+    //System.exit(1)
+
     var evaluatorsList = List[SpotEval]()
     val luceneSpoters = List("LingPipeSpotter", "AtLeastOneNounSelector", "CoOccurrenceBasedSelector",
       "NESpotter", "KeyphraseSpotter", "OpenNLPChunkerSpotter"
@@ -504,30 +511,39 @@ object SpotEval{
     }
     evaluatorsList = evaluatorsList :+ new SpotEval("http://spotlight.sztaki.hu:2222/rest/", "Default")
 
-    val outputBaseDirName: String = "/home/alexandre/projects/spot-eval"
+    val outputBaseDirName: String = "D:/DB_output/spotted_corpus"
 
     var gsList: List[(AnnotatedTextSource, String)] = List()
 
     //M&W mock
     gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
-      "/home/alexandre/intrinsic/corpus/2u-mock-MilneWitten")), (outputBaseDirName+"/mw-mock") )
+      "D:/DB_output/spotted_corpus/corpus/2u-mock-MilneWitten")), (outputBaseDirName+"/mw-mock") )
     //M&W
     gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
-      "/home/alexandre/intrinsic/corpus/MilneWitten-wikifiedStories")), (outputBaseDirName+"/mw") )
+      "D:/DB_output/spotted_corpus/corpus/MilneWitten-wikifiedStories")), (outputBaseDirName+"/mw") )
     //CSAW mock
     gsList = gsList :+ ( CSAWCorpus.fromDirectory(new File(
-      "/home/alexandre/intrinsic/corpus/CSAW_crawledDocs")), (outputBaseDirName+"/csaw") )
+      "D:/DB_output/spotted_corpus/corpus/CSAW_crawledDocs")), (outputBaseDirName+"/csaw") )
     //CoNLL
     gsList = gsList :+ ( AidaCorpus.fromFile(new File(
-      "/home/alexandre/intrinsic/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )
+      "D:/DB_output/spotted_corpus/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )
 
 //    defaultPipeLine(evaluatorsList, gsList)
 
     gsList.foreach{ gs =>
+      val resultsDirName: String = gs._2+"/results/"
+
       evaluatorsList.foreach{ e =>
-        e.complementOfTP(gs._1, gs._2+"/spotted/"+e.spotter, gs._2+"/tp-complement/"+e.spotter+".tp-complement.tsv")
+        e.evaluate(gs._1, gs._2+"/spotted/"+e.spotter, resultsDirName+"SpotEvalResults-"+gs._1.name+"-"+e.spotter+".tsv", List[String]("DBpedia:Person", "DBpedia:Place", "DBpedia:Organisation"))
+      }
+
+      List("All", "Avg").foreach{ id =>
+        SpotlightLog.info(this.getClass, "The metrics line \"%s\" of each evaluator were gathered in: %s",
+          id, gather(id, evaluatorsList, gs._1, new File(resultsDirName)) )
       }
     }
+
+
 
   }
 }
