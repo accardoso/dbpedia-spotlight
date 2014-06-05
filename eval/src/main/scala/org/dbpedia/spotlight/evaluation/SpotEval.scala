@@ -11,10 +11,11 @@ import org.xml.sax.SAXParseException
 import scala.io.Source
 import sys.process._
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 import scala.util.control.Breaks._
 import scala.collection.mutable
 import org.dbpedia.spotlight.db.memory._
-import org.dbpedia.spotlight.exceptions.DBpediaResourceNotFoundException
+import org.dbpedia.spotlight.exceptions.{NotADBpediaResourceException, DBpediaResourceNotFoundException}
 import org.dbpedia.spotlight.db.{WikipediaToDBpediaClosure, DBCandidateSearcher}
 
 /**
@@ -177,15 +178,15 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
       /* Read the answer as List of SpotEvalOccurrence from the file with the current paragraph spotted */
       val spottedParagraphFileName: String = spottedParagraphsDirName+File.separator+corpus.name+"-"+spotter+"-P"+countParagraphs
-      var ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName))
+      var ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName), true)
 
       /* Read the paragraph expected annotations as List of SpotEvalOccurrence from the occurrences of the current paragraph (AnnotatedParagraph) */
-      var expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences)
+      var expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences, true)
 
       /* Filter types */
       if(acceptableTypes != null){
-        expected.foreach(_.definePossibleTypes(true))
-        ans.foreach(_.definePossibleTypes(false))
+        //expected.foreach(_.definePossibleTypes())
+        //ans.foreach(_.definePossibleTypes())
 
         ans = ans.filter(_.isOfAcceptableTypes(acceptableTypes))
         expected = expected.filter(_.isOfAcceptableTypes(acceptableTypes))
@@ -281,10 +282,10 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
       /* Read the answer as List of SpotEvalOccurrence from the file with the current paragraph spotted */
       val spottedParagraphFileName: String = spottedParagraphsDirName+File.separator+corpus.name+"-"+spotter+"-P"+countParagraphs
-      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName))
+      val ans:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromSurfaceFormOccurrence(extractSpottingOccsFromFile(spottedParagraphFileName), true)
 
       /* Read the paragraph expected annotations as List of SpotEvalOccurrence from the occurrences of the current paragraph (AnnotatedParagraph) */
-      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences)
+      val expected:List[SpotEvalOccurrence] = SpotEvalOccurrence.convertFromDBpediaResourceOccurrence(paragraph.occurrences, true)
 
       /* Compare the expected and the Spotlight answer and define the true positives for the current paragraph */
       val paragraphComplement = paragraphComplementOfTP(expected , ans)
@@ -460,8 +461,8 @@ object SpotEval{
   def getSpotType(spot: String): String = {
     breakable(
       for (candidate <- searcher.getCandidates(new SurfaceForm(spot)).toList) {
-        println(candidate.surfaceForm.name)
-        System.exit(1)
+        //println(candidate.surfaceForm.name)
+        //System.exit(1)
 
         try {
           val typesList = resStore.getResourceByName(candidate.resource.uri).getTypes.asScala.toList
@@ -558,20 +559,11 @@ object SpotEval{
 }
 
 /* The Abstract Data Type for the spot results and corpus compatibility */
-class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm, uri : String) extends Comparable[SpotEvalOccurrence]{
-  def this(element: DBpediaResourceOccurrence) = this(element.textOffset, element.surfaceForm, element.resource.uri)
-  def this(element: SurfaceFormOccurrence) = this(element.textOffset, element.surfaceForm, "")
-
-  var possibleTypes = List[String]()
-  def definePossibleTypes(isKnown : Boolean) {
-    if (isKnown) {
-      possibleTypes = List(SpotEval.wikipediaToDBpediaClosure.wikipediaToDBpediaURI("http://en.wikipedia.org/wiki/" + uri.replaceAll(" ","""_""")))
-      println("http://en.wikipedia.org/wiki/" + uri.replaceAll(" ","""_"""))
-      println(possibleTypes(0))
-      System.exit(1)
-    }
-    else possibleTypes = List(SpotEval.getSpotType(surfaceForm.name)) //todo
-  }
+class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm, possibleTypes: List[String]) extends Comparable[SpotEvalOccurrence]{
+  def this(element: DBpediaResourceOccurrence) = this(element.textOffset, element.surfaceForm, SpotEvalOccurrence.definePossibleTypes(element))
+  def this(element: SurfaceFormOccurrence) = this(element.textOffset, element.surfaceForm, SpotEvalOccurrence.definePossibleTypes(element))
+  def this(element: DBpediaResourceOccurrence, possibleTypes: List[String]) = this(element.textOffset, element.surfaceForm, possibleTypes)
+  def this(element: SurfaceFormOccurrence, possibleTypes: List[String]) = this(element.textOffset, element.surfaceForm, possibleTypes)
 
   def compareTo(o: SpotEvalOccurrence): Int = this.getOffset().compareTo(o.getOffset())
 
@@ -591,17 +583,54 @@ class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm, uri : String) 
 }
 object SpotEvalOccurrence{
 
-  def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence]): List[SpotEvalOccurrence] = {
+  val testStream = new PrintStream("D:/Downloads/teste.txt")
+
+  def definePossibleTypes(element: SurfaceFormOccurrence): List[String] = {
+    val possibleTypes: List[String] = List(SpotEval.getSpotType(element.surfaceForm.name))
+    possibleTypes
+  }
+
+  def definePossibleTypes(element: DBpediaResourceOccurrence): List[String] = {
+    val wikiURI = ("http://en.wikipedia.org/wiki/" + element.resource.uri.replaceAll(" ","""_"""))
+    testStream.println(wikiURI)
+    try {
+      val possibleOntTypes: java.util.List[OntologyType] = SpotEval.searcher.resStore.getResourceByName(SpotEval.wikipediaToDBpediaClosure.wikipediaToDBpediaURI(wikiURI)).getTypes
+      val possibleTypes: List[String] = convertOntologyToStringList(possibleOntTypes)
+      possibleTypes
+    } catch {
+      case e: NotADBpediaResourceException => List[String]()
+      case e: DBpediaResourceNotFoundException => List[String]()
+    }
+  }
+
+  def convertOntologyToStringList(ontList: java.util.List[OntologyType]): List[String] = {
+    if (ontList.size() > 0) {
+      val newStringList = mutable.ListBuffer[String]()
+      for (ontType <- ontList.toList) {
+        newStringList += ontType.typeID
+      }
+      //for (aType <- newStringList) {
+      //  println(aType)
+      //}
+      //System.exit(1)
+
+      newStringList.toList
+    } else {
+      List[String]()
+    }
+  }
+
+  def convertFromDBpediaResourceOccurrence(list: List[DBpediaResourceOccurrence], withTypes: Boolean): List[SpotEvalOccurrence] = {
     var out: List[SpotEvalOccurrence] = List()
     list.foreach { e =>
-      out = out :+ new SpotEvalOccurrence(e)
+      out = out :+ (if(withTypes) new SpotEvalOccurrence(e) else new SpotEvalOccurrence(e, List[String]()) )
     }
     out
   }
-  def convertFromSurfaceFormOccurrence(list: List[SurfaceFormOccurrence]): List[SpotEvalOccurrence] = {
+  def convertFromSurfaceFormOccurrence(list: List[SurfaceFormOccurrence], withTypes: Boolean): List[SpotEvalOccurrence] = {
     var out: List[SpotEvalOccurrence] = List()
     list.foreach { e =>
-      out = out :+ new SpotEvalOccurrence(e)
+      out = out :+ (if(withTypes) new SpotEvalOccurrence(e) else new SpotEvalOccurrence(e, List[String]()) )
     }
     out
   }
