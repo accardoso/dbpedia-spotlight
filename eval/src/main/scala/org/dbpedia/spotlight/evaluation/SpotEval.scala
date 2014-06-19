@@ -56,6 +56,8 @@ import org.dbpedia.spotlight.db.{WikipediaToDBpediaClosure, DBCandidateSearcher}
 class SpotEval(var spotlightServer: String, var spotter: String, val justOffset: Boolean){
   def this(spotlightServer: String, spotter: String) = this(spotlightServer, spotter, false) //Constructor for usual evaluation, i.e. using both offset and surface form equality.
 
+  val checkResultsTP = new PrintStream("D:/DB_output/spotted_corpus/results_final/results_mw_mock/tp.txt")
+
   /* Treat the informed parameters */
   if(!spotlightServer.endsWith("/"))
     spotlightServer = spotlightServer + "/"
@@ -133,18 +135,23 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
         while(e.getOffset() > ans(i).getOffset()){
           i += 1
         }
-        if(e.getOffset() == ans(i).getOffset())
-          if(justOffset || e.getSurfaceForm().equals(ans(i).getSurfaceForm())){
+        if(e.getOffset().equals(ans(i).getOffset()))
+          //println("Expected = " + e.getSurfaceForm().name)
+          //println("Ans = " + ans(i).getSurfaceForm().name)
+          if(justOffset || e.getSurfaceForm().name.equals(ans(i).getSurfaceForm().name)){
+            //println("Expected 2 = " + e.getSurfaceForm().name)
+            //println("Ans 2 = " + ans(i).getSurfaceForm().name)
             tp += 1
             i += 1
+            //checkResultsTP.println(e.getSurfaceForm().name)
           }
       }
     }catch {
       /* If the IndexOutOfBoundsException it means that the i is bigger than the positions of ans list, so it has
       ended and no more tp incrementation is possible, i.e. the comparison for this paragraph has terminated. */
-      case e: IndexOutOfBoundsException => if(e.getMessage.toInt != ans.length) throw e //else The List ans is terminate, so also the true positives (tp)
+      case e: IndexOutOfBoundsException => if (e.getMessage.toInt != ans.length) throw e //else The List ans is terminate, so also the true positives (tp)
     }
-
+//System.exit(1)
     tp
   }
 
@@ -172,6 +179,9 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
     var avgPrecision: Float = 0
     var avgRecall: Float = 0
     var avgF1: Float = 0
+
+    val checkResultsRel = new PrintStream("D:/DB_output/spotted_corpus/results_final/results_mw_mock/rel.txt")
+    val checkResultsRet = new PrintStream("D:/DB_output/spotted_corpus/results_final/results_mw_mock/ret.txt")
     
     corpus.foreach{ paragraph =>
       countParagraphs += 1
@@ -190,6 +200,15 @@ class SpotEval(var spotlightServer: String, var spotter: String, val justOffset:
 
         ans = ans.filter(_.isOfAcceptableTypes(acceptableTypes))
         expected = expected.filter(_.isOfAcceptableTypes(acceptableTypes))
+
+        ans.foreach( item =>
+          checkResultsRet.println(item)
+        )
+
+        expected.foreach( item =>
+          checkResultsRel.println(item)
+        )
+
       }
 
       /* Compare the expected and the Spotlight answer and define the true positives for the current paragraph */
@@ -505,13 +524,6 @@ object SpotEval{
     candMapStore = MemoryStore.loadCandidateMapStore(isCMS, resStore, qcStore)
     searcher = new DBCandidateSearcher(resStore, sfStore, candMapStore)
 
-    //val cands = searcher.getCandidates(new SurfaceForm("PPRT"))
-    //for (cand <- cands) {
-      //println(cand.surfaceForm.name)
-    //}
-    //println(cands.size)
-    //System.exit(1)
-
     var evaluatorsList = List[SpotEval]()
     val luceneSpoters = List("LingPipeSpotter", "AtLeastOneNounSelector", "CoOccurrenceBasedSelector",
       "NESpotter", "KeyphraseSpotter", "OpenNLPChunkerSpotter"
@@ -529,14 +541,14 @@ object SpotEval{
     gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
       "D:/DB_output/spotted_corpus/corpus/2u-mock-MilneWitten")), (outputBaseDirName+"/mw-mock") )
     //M&W
-    gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
+    /*gsList = gsList :+ ( MilneWittenCorpus.fromDirectory(new File(
       "D:/DB_output/spotted_corpus/corpus/MilneWitten-wikifiedStories")), (outputBaseDirName+"/mw") )
     //CSAW mock
     gsList = gsList :+ ( CSAWCorpus.fromDirectory(new File(
       "D:/DB_output/spotted_corpus/corpus/CSAW_crawledDocs")), (outputBaseDirName+"/csaw") )
     //CoNLL
     gsList = gsList :+ ( AidaCorpus.fromFile(new File(
-      "D:/DB_output/spotted_corpus/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )
+      "D:/DB_output/spotted_corpus/corpus/conll-yago/CoNLL-YAGO.tsv")), (outputBaseDirName+"/conll") )*/
 
 //    defaultPipeLine(evaluatorsList, gsList)
 
@@ -583,17 +595,14 @@ class SpotEvalOccurrence(offset : Int, surfaceForm : SurfaceForm, possibleTypes:
 }
 object SpotEvalOccurrence{
 
-  val testStream = new PrintStream("D:/Downloads/teste.txt")
-
   def definePossibleTypes(element: SurfaceFormOccurrence): List[String] = {
     val possibleTypes: List[String] = List(SpotEval.getSpotType(element.surfaceForm.name))
     possibleTypes
   }
 
   def definePossibleTypes(element: DBpediaResourceOccurrence): List[String] = {
-    val wikiURI = ("http://en.wikipedia.org/wiki/" + element.resource.uri.replaceAll(" ","""_"""))
-    testStream.println(wikiURI)
     try {
+      val wikiURI = ("http://en.wikipedia.org/wiki/" + element.resource.uri.replaceAll(" ","""_"""))
       val possibleOntTypes: java.util.List[OntologyType] = SpotEval.searcher.resStore.getResourceByName(SpotEval.wikipediaToDBpediaClosure.wikipediaToDBpediaURI(wikiURI)).getTypes
       val possibleTypes: List[String] = convertOntologyToStringList(possibleOntTypes)
       possibleTypes
@@ -609,10 +618,6 @@ object SpotEvalOccurrence{
       for (ontType <- ontList.toList) {
         newStringList += ontType.typeID
       }
-      //for (aType <- newStringList) {
-      //  println(aType)
-      //}
-      //System.exit(1)
 
       newStringList.toList
     } else {
