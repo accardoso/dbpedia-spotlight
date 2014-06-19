@@ -64,7 +64,8 @@ object Helper {
 
   val normalizations = Map[String, List[(String, String)]](
     "fr" -> List( ("([dDlL])[’']", "$1 ") ), //French def. and indef. article
-    "it" -> List( ("([lL]|[uU]n)[’']", "$1 ") ) //Italian def. and indef. article
+    "it" -> List( ("([lL]|[uU]n)[’']", "$1 ") ), //Italian def. and indef. article
+    "en" -> List( ("[’']s", " s") ) //normalize possesive
   )
 
   def normalize(locale: Locale, text: String): String = {
@@ -83,16 +84,25 @@ object Helper {
   def tokenizeSentences(locale: Locale, text: String): Array[Span] =
     tokenizeString(locale, BreakIterator.getSentenceInstance(locale), text)
 
+
   def tokenizeString(locale: Locale, it: BreakIterator, text: String): Array[Span] = {
     val normalizedText = normalize(locale, text)
     it.setText( normalizedText )
     var spans = ArrayBuffer[Span]()
 
     var start = it.first()
-    var end = it.next()
+
+    var end = try {
+      it.next()
+    } catch {
+      case e: java.lang.ArrayIndexOutOfBoundsException =>
+        System.err.println("Encountered JVM bug JDK-7104012, consider upgrading to Java 8!")
+        it.setText( java.text.Normalizer.normalize(normalizedText, java.text.Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "") )
+        it.next()
+    }
 
     while (end != BreakIterator.DONE) {
-      if (!Character.isWhitespace(normalizedText.charAt(start)))
+      if ((start until end) exists (i => ! Character.isWhitespace(normalizedText.charAt(i))))
         spans += new Span(start, end)
 
       start = end

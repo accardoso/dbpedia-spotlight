@@ -1,3 +1,4 @@
+#!/bin/sh
 ##
 # Script for the preparation of Types (DBpedia ontology types, Freebase types, Schema.org types).
 # This script needs zipped NTriple files from the latest DBpedia release and

@@ -29,7 +29,7 @@ class MemoryContextStore
   var totalTokenCounts: Array[Int] = null
 
   var tokens: Array[Array[Int]] = null
-  var counts: Array[Array[Int]] = null
+  var counts: Array[Array[Short]] = null
 
   def size = tokens.length
 
@@ -49,11 +49,19 @@ class MemoryContextStore
       val c = counts(i)
 
       (0 to t.length-1) foreach { j =>
-        contextCounts.put(tokenStore.getTokenTypeByID(t(j)), c(j))
+        contextCounts.put(tokenStore.getTokenTypeByID(t(j)), qc(c(j)))
       }
     }
 
     contextCounts
+  }
+
+
+  def getRawContextCounts(resource: DBpediaResource): (Seq[Int], Seq[Int]) = {
+    if(tokens(resource.id) == null)
+      (Seq[Int](), Seq[Int]())
+    else
+      (tokens(resource.id), counts(resource.id).map(qc))
   }
 
   def write(kryo: Kryo, output: Output) {
@@ -69,18 +77,39 @@ class MemoryContextStore
           output.writeInt(tokens(i)(j))
         }
         (0 to tokens(i).length-1).foreach{ j =>
-          output.writeInt(counts(i)(j))
+          output.writeShort(counts(i)(j).toInt)
         }
       }
     }
     output.writeChar('#')
   }
 
+  /*
+  * Calculates totalTokenCounts once kryo has read the Serialized Object
+  * */
+  def calculateTotalTokenCounts(){
+    var i = 0
+    while(i < counts.size){
+
+      if (counts(i).isInstanceOf[Array[Short]]){
+        var j = 0
+
+        while(j < counts(i).size ){
+          totalTokenCounts(i) += qc(counts(i)(j))
+          j += 1
+        }
+
+      }
+      i += 1
+    }
+  }
+
+
   def read(kryo: Kryo, input: Input) {
     val size = input.readInt()
 
     tokens = new Array[Array[Int]](size)
-    counts = new Array[Array[Int]](size)
+    counts = new Array[Array[Short]](size)
     totalTokenCounts = new Array[Int](size)
 
     var i = 0
@@ -91,7 +120,7 @@ class MemoryContextStore
 
       if (subsize > 0) {
         tokens(i) = new Array[Int](subsize)
-        counts(i) = new Array[Int](subsize)
+        counts(i) = new Array[Short](subsize)
 
         j = 0
         while(j < subsize) {
@@ -101,8 +130,7 @@ class MemoryContextStore
 
         j = 0
         while(j < subsize) {
-          counts(i)(j) = input.readInt()
-          totalTokenCounts(i) += counts(i)(j)
+          counts(i)(j) = input.readShort()
           j += 1
         }
      }
